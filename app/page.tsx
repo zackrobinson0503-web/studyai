@@ -74,12 +74,12 @@ export default function Home() {
   };
 
   return (
-    <main style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #e8f5f0 0%, #f4faf7 20%, #ffffff 50%)', fontFamily: 'var(--font-sans)' }}>
+    <main style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 25%, #f4faf7 50%, #ffffff 75%)', fontFamily: 'var(--font-sans)' }}>
 
       {/* Navbar */}
-      <nav style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #D3F0E6', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+      <nav style={{ background: 'rgba(200, 234, 217, 0.7)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#E1F5EE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#9FE1CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: '16px' }}>✦</span>
           </div>
           <span style={{ fontSize: '15px', fontWeight: 500, color: '#085041' }}>StudyAI</span>
@@ -103,19 +103,17 @@ export default function Home() {
       {/* Hero */}
       <div style={{ padding: '72px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
 
-        {/* Bubbles */}
-        <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
-        <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '350px', height: '350px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.5 }} />
-        <div style={{ position: 'absolute', top: '40px', left: '10%', width: '120px', height: '120px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', top: '20px', right: '20%', width: '60px', height: '60px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.25 }} />
-        <div style={{ position: 'absolute', bottom: '30px', right: '12%', width: '90px', height: '90px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
-        <div style={{ position: 'absolute', bottom: '60px', left: '22%', width: '45px', height: '45px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', top: '50%', right: '4%', width: '70px', height: '70px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.5 }} />
-        <div style={{ position: 'absolute', top: '15%', left: '28%', width: '30px', height: '30px', borderRadius: '50%', background: '#1D9E75', opacity: 0.12 }} />
-        <div style={{ position: 'absolute', top: '60%', left: '6%', width: '55px', height: '55px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', top: '30%', right: '8%', width: '40px', height: '40px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15 }} />
-        <div style={{ position: 'absolute', bottom: '10px', left: '45%', width: '20px', height: '20px', borderRadius: '50%', background: '#1D9E75', opacity: 0.1 }} />
-        <div style={{ position: 'absolute', top: '10px', left: '50%', width: '15px', height: '15px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+        {/* Bubbles — all contained, no half-cuts */}
+        <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
+        <div style={{ position: 'absolute', top: '60px', left: '18%', width: '50px', height: '50px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+        <div style={{ position: 'absolute', top: '10px', right: '8%', width: '80px', height: '80px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
+        <div style={{ position: 'absolute', top: '30px', right: '22%', width: '40px', height: '40px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+        <div style={{ position: 'absolute', bottom: '40px', left: '8%', width: '70px', height: '70px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
+        <div style={{ position: 'absolute', bottom: '20px', left: '30%', width: '30px', height: '30px', borderRadius: '50%', background: '#1D9E75', opacity: 0.1 }} />
+        <div style={{ position: 'absolute', bottom: '50px', right: '10%', width: '60px', height: '60px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
+        <div style={{ position: 'absolute', bottom: '30px', right: '28%', width: '20px', height: '20px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+        <div style={{ position: 'absolute', top: '45%', left: '3%', width: '35px', height: '35px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15 }} />
+        <div style={{ position: 'absolute', top: '40%', right: '3%', width: '45px', height: '45px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.08em', margin: '0 0 14px', textTransform: 'uppercase' }}>✦ Powered by AI</p>
@@ -141,11 +139,9 @@ export default function Home() {
 
       {/* Results */}
       <div style={{ maxWidth: '700px', margin: '0 auto', padding: '24px 16px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '40px', right: '-60px', width: '80px', height: '80px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.4, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '180px', left: '-50px', width: '60px', height: '60px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '350px', right: '-30px', width: '40px', height: '40px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '500px', left: '-70px', width: '110px', height: '110px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.25, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '700px', right: '-50px', width: '90px', height: '90px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.15, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '60px', right: '-30px', width: '60px', height: '60px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.4, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '200px', left: '-30px', width: '45px', height: '45px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: '400px', right: '-20px', width: '35px', height: '35px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15, pointerEvents: 'none' }} />
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
