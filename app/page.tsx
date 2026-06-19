@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 
 const TABS = [
@@ -10,7 +10,10 @@ const TABS = [
   { id: 'problems', label: 'Problems' },
   { id: 'reddit', label: 'Reddit' },
   { id: 'textbooks', label: 'Textbooks' },
+  { id: 'tutor', label: '✦ AI Tutor' },
 ];
+
+type Message = { role: 'user' | 'assistant'; content: string };
 
 export default function Home() {
   const { data: session } = useSession();
@@ -19,12 +22,38 @@ export default function Home() {
   const [results, setResults] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('videos');
   const [loadingStep, setLoadingStep] = useState('');
+  const [currentTopic, setCurrentTopic] = useState('');
+
+  // Floating chat bubble state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  // AI Tutor tab state
+  const [tutorMessages, setTutorMessages] = useState<Message[]>([]);
+  const [tutorInput, setTutorInput] = useState('');
+  const [tutorLoading, setTutorLoading] = useState(false);
+  const [tutorInitialized, setTutorInitialized] = useState(false);
+  const tutorBottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat windows
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  useEffect(() => {
+    tutorBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [tutorMessages]);
 
   async function handleSearch() {
     if (!query.trim()) return;
     setLoading(true);
     setResults(null);
     setActiveTab('videos');
+    setTutorMessages([]);
+    setTutorInitialized(false);
     setLoadingStep('Asking AI to understand your class...');
     await new Promise(r => setTimeout(r, 800));
     setLoadingStep('Searching YouTube, PDFs, Quizlet and more...');
@@ -37,13 +66,139 @@ export default function Home() {
     });
     const data = await res.json();
     setResults(data);
+    setCurrentTopic(query);
     setLoading(false);
+  }
+
+  // Initialize tutor with starter questions when tab is first opened
+  async function initializeTutor() {
+    if (tutorInitialized || !currentTopic) return;
+    setTutorInitialized(true);
+    setTutorLoading(true);
+    const initPrompt = `I just searched for "${currentTopic}". Give me 3 short, specific questions I should be able to answer to truly understand this topic. Number them 1, 2, 3. Then ask me which one I want to start with.`;
+    const initMessages: Message[] = [{ role: 'user', content: initPrompt }];
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: initMessages, topic: currentTopic, mode: 'tutor' }),
+    });
+    const data = await res.json();
+    setTutorMessages([{ role: 'assistant', content: data.reply }]);
+    setTutorLoading(false);
+  }
+
+  async function sendChatMessage() {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg: Message = { role: 'user', content: chatInput };
+    const updated = [...chatMessages, userMsg];
+    setChatMessages(updated);
+    setChatInput('');
+    setChatLoading(true);
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: updated, topic: currentTopic, mode: 'chat' }),
+    });
+    const data = await res.json();
+    setChatMessages([...updated, { role: 'assistant', content: data.reply }]);
+    setChatLoading(false);
+  }
+
+  async function sendTutorMessage() {
+    if (!tutorInput.trim() || tutorLoading) return;
+    const userMsg: Message = { role: 'user', content: tutorInput };
+    const updated = [...tutorMessages, userMsg];
+    setTutorMessages(updated);
+    setTutorInput('');
+    setTutorLoading(true);
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: updated, topic: currentTopic, mode: 'tutor' }),
+    });
+    const data = await res.json();
+    setTutorMessages([...updated, { role: 'assistant', content: data.reply }]);
+    setTutorLoading(false);
   }
 
   const ytBase = 'https://www.youtube.com/watch?v=';
 
   const renderResults = () => {
     if (!results) return null;
+
+    if (activeTab === 'tutor') {
+      return (
+        <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', overflow: 'hidden' }}>
+          {/* Tutor header */}
+          <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>✦</div>
+            <div>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'white' }}>AI Tutor</p>
+              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.75)' }}>Topic: {currentTopic}</p>
+            </div>
+          </div>
+
+          {/* Messages area */}
+          <div style={{ height: '380px', overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {tutorMessages.length === 0 && !tutorLoading && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.6 }}>
+                <span style={{ fontSize: '32px' }}>📚</span>
+                <p style={{ fontSize: '13px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>Search for a topic to start your tutoring session</p>
+              </div>
+            )}
+            {tutorMessages.map((msg, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{
+                  maxWidth: '85%',
+                  padding: '10px 14px',
+                  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                  background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
+                  color: msg.role === 'user' ? 'white' : '#085041',
+                  fontSize: '13px',
+                  lineHeight: 1.6,
+                  border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {tutorLoading && (
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: '#F4FAF7', border: '0.5px solid #D3F0E6' }}>
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {[0, 1, 2].map(i => (
+                      <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={tutorBottomRef} />
+          </div>
+
+          {/* Input */}
+          <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '12px', display: 'flex', gap: '8px' }}>
+            <input
+              value={tutorInput}
+              onChange={e => setTutorInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && sendTutorMessage()}
+              placeholder={currentTopic ? 'Ask your tutor anything...' : 'Search for a topic first'}
+              disabled={!currentTopic}
+              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '0.5px solid #D3F0E6', background: currentTopic ? 'white' : '#F9FFFE', color: '#085041', fontSize: '13px', outline: 'none' }}
+            />
+            <button
+              onClick={sendTutorMessage}
+              disabled={!currentTopic || tutorLoading}
+              style={{ background: currentTopic ? '#1D9E75' : '#D3F0E6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', cursor: currentTopic ? 'pointer' : 'not-allowed', fontWeight: 500 }}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     if (activeTab === 'videos') {
       const videos = results.videos || [];
       return videos.map((v: any, i: number) => (
@@ -59,6 +214,7 @@ export default function Home() {
         </a>
       ));
     }
+
     const items = results[activeTab] || [];
     return items.map((item: any, i: number) => (
       <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
@@ -75,6 +231,12 @@ export default function Home() {
 
   return (
     <main style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 25%, #f4faf7 50%, #ffffff 75%)', fontFamily: 'var(--font-sans)' }}>
+
+      {/* Bounce animation for typing dots */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+      `}</style>
 
       {/* Navbar */}
       <nav style={{ background: 'rgba(200, 234, 217, 0.7)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
@@ -102,8 +264,6 @@ export default function Home() {
 
       {/* Hero */}
       <div style={{ padding: '72px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-
-        {/* Bubbles — all contained, no half-cuts */}
         <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
         <div style={{ position: 'absolute', top: '60px', left: '18%', width: '50px', height: '50px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
         <div style={{ position: 'absolute', top: '10px', right: '8%', width: '80px', height: '80px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
@@ -146,7 +306,6 @@ export default function Home() {
         {loading && (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
             <div style={{ width: '36px', height: '36px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <p style={{ fontSize: '14px', color: '#1D9E75', fontWeight: 500 }}>{loadingStep}</p>
           </div>
         )}
@@ -161,7 +320,14 @@ export default function Home() {
             )}
             <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
               {TABS.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: activeTab === tab.id ? 'none' : '0.5px solid #9FE1CB', background: activeTab === tab.id ? '#1D9E75' : 'transparent', color: activeTab === tab.id ? 'white' : '#0F6E56', cursor: 'pointer', fontWeight: activeTab === tab.id ? 500 : 400 }}>
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id === 'tutor') initializeTutor();
+                  }}
+                  style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: activeTab === tab.id ? 'none' : '0.5px solid #9FE1CB', background: activeTab === tab.id ? '#1D9E75' : 'transparent', color: activeTab === tab.id ? 'white' : '#0F6E56', cursor: 'pointer', fontWeight: activeTab === tab.id ? 500 : 400 }}
+                >
                   {tab.label}
                 </button>
               ))}
@@ -170,6 +336,96 @@ export default function Home() {
           </>
         )}
       </div>
+
+      {/* Floating Chat Bubble */}
+      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
+        {/* Chat Panel */}
+        {chatOpen && (
+          <div style={{ position: 'absolute', bottom: '64px', right: 0, width: '320px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 40px rgba(8,80,65,0.18)', border: '0.5px solid #9FE1CB', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {/* Chat header */}
+            <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✦</div>
+                <div>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'white' }}>Study Assistant</p>
+                  {currentTopic && <p style={{ margin: 0, fontSize: '10px', color: 'rgba(255,255,255,0.75)' }}>on: {currentTopic}</p>}
+                </div>
+              </div>
+              <button onClick={() => setChatOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {/* Messages */}
+            <div style={{ height: '280px', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {chatMessages.length === 0 && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: 0.6 }}>
+                  <span style={{ fontSize: '28px' }}>💬</span>
+                  <p style={{ fontSize: '12px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>
+                    {currentTopic ? `Ask me anything about "${currentTopic}"` : 'Ask me anything about your studies'}
+                  </p>
+                </div>
+              )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '85%',
+                    padding: '8px 12px',
+                    borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                    background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
+                    color: msg.role === 'user' ? 'white' : '#085041',
+                    fontSize: '12px',
+                    lineHeight: 1.5,
+                    border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{ padding: '8px 12px', borderRadius: '12px 12px 12px 2px', background: '#F4FAF7', border: '0.5px solid #D3F0E6' }}>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      {[0, 1, 2].map(i => (
+                        <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '10px', display: 'flex', gap: '6px' }}>
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
+                placeholder="Ask anything..."
+                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '0.5px solid #D3F0E6', color: '#085041', fontSize: '12px', outline: 'none' }}
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={chatLoading}
+                style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}
+              >
+                →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bubble button */}
+        <button
+          onClick={() => setChatOpen(o => !o)}
+          style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #1D9E75, #085041)', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(29,158,117,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', transition: 'transform 0.2s' }}
+          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
+          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+        >
+          {chatOpen ? '×' : '✦'}
+        </button>
+      </div>
+
     </main>
   );
 }
