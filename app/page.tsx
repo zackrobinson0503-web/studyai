@@ -25,6 +25,12 @@ export default function Home() {
   const [loadingStep, setLoadingStep] = useState('');
   const [currentTopic, setCurrentTopic] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [pages, setPages] = useState<Record<string, number>>({
+    videos: 1, pdfs: 1, quizlet: 1, problems: 1, reddit: 1, textbooks: 1,
+  });
+  const [pageResults, setPageResults] = useState<Record<string, any[]>>({});
+  const [pageLoading, setPageLoading] = useState(false);
+  const ITEMS_PER_PAGE = 5;
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -54,6 +60,8 @@ export default function Home() {
     setActiveTab('videos');
     setTutorMessages([]);
     setTutorInitialized(false);
+    setPages({ videos: 1, pdfs: 1, quizlet: 1, problems: 1, reddit: 1, textbooks: 1 });
+    setPageResults({});
     setLoadingStep('Asking AI to understand your class...');
     await new Promise(r => setTimeout(r, 800));
     setLoadingStep('Searching YouTube, PDFs, Quizlet and more...');
@@ -68,6 +76,42 @@ export default function Home() {
     setResults(data);
     setCurrentTopic(query);
     setLoading(false);
+  }
+
+  async function loadMoreResults(tabId: string, nextPage: number) {
+    if (pageLoading) return;
+    setPageLoading(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    const extraMap: Record<string, string> = {
+      pdfs: 'free PDF study guide filetype:pdf',
+      quizlet: 'quizlet flashcards',
+      problems: 'practice problems with solutions',
+      reddit: 'site:reddit.com',
+      textbooks: 'free textbook solutions',
+    };
+
+    if (tabId === 'videos') {
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ className: query, page: nextPage }),
+      });
+      const data = await res.json();
+      setPageResults(prev => ({ ...prev, [`videos_${nextPage}`]: data.videos || [] }));
+    } else {
+      const q = encodeURIComponent(currentTopic + ' ' + extraMap[tabId]);
+      const res = await fetch(`/api/search?serpPage=${nextPage}&q=${q}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ className: query, page: nextPage, tab: tabId }),
+      });
+      const data = await res.json();
+      setPageResults(prev => ({ ...prev, [`${tabId}_${nextPage}`]: data[tabId] || [] }));
+    }
+
+    setPages(prev => ({ ...prev, [tabId]: nextPage }));
+    setPageLoading(false);
   }
 
   async function initializeTutor() {
@@ -129,6 +173,62 @@ export default function Home() {
     return (results[tabId] || []).length;
   };
 
+  const getCurrentItems = (tabId: string) => {
+    const page = pages[tabId] || 1;
+    if (page > 1 && pageResults[`${tabId}_${page}`]) {
+      return pageResults[`${tabId}_${page}`];
+    }
+    if (!results) return [];
+    if (tabId === 'videos') return results.videos || [];
+    return results[tabId] || [];
+  };
+
+  const renderPagination = (tabId: string) => {
+    const page = pages[tabId] || 1;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '20px', paddingBottom: '20px' }}>
+        <button
+          onClick={() => loadMoreResults(tabId, page - 1)}
+          disabled={page <= 1 || pageLoading}
+          style={{
+            padding: '8px 18px', borderRadius: '8px', border: '0.5px solid #9FE1CB',
+            background: page <= 1 ? '#F4FAF7' : 'white', color: page <= 1 ? '#9FE1CB' : '#0F6E56',
+            cursor: page <= 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500,
+          }}
+        >
+          ← Prev
+        </button>
+        {[1, 2, 3, 4, 5].map(p => (
+          <button
+            key={p}
+            onClick={() => p !== page && loadMoreResults(tabId, p)}
+            style={{
+              width: '34px', height: '34px', borderRadius: '8px', border: 'none',
+              background: p === page ? '#1D9E75' : 'white',
+              color: p === page ? 'white' : '#0F6E56',
+              cursor: p === page ? 'default' : 'pointer',
+              fontSize: '13px', fontWeight: p === page ? 600 : 400,
+              border: p === page ? 'none' : '0.5px solid #D3F0E6',
+            } as any}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() => loadMoreResults(tabId, page + 1)}
+          disabled={page >= 5 || pageLoading}
+          style={{
+            padding: '8px 18px', borderRadius: '8px', border: '0.5px solid #9FE1CB',
+            background: page >= 5 ? '#F4FAF7' : 'white', color: page >= 5 ? '#9FE1CB' : '#0F6E56',
+            cursor: page >= 5 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500,
+          }}
+        >
+          Next →
+        </button>
+      </div>
+    );
+  };
+
   const renderResults = () => {
     if (!results) return null;
 
@@ -152,8 +252,7 @@ export default function Home() {
             {tutorMessages.map((msg, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{
-                  maxWidth: '85%',
-                  padding: '10px 14px',
+                  maxWidth: '85%', padding: '10px 14px',
                   borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                   background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
                   border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
@@ -168,7 +267,7 @@ export default function Home() {
             {tutorLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                 <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: '#F4FAF7', border: '0.5px solid #D3F0E6' }}>
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
                     {[0, 1, 2].map(i => (
                       <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
                     ))}
@@ -199,39 +298,56 @@ export default function Home() {
       );
     }
 
-    if (activeTab === 'videos') {
-      const videos = results.videos || [];
-      return videos.map((v: any, i: number) => (
-        <a key={i} href={ytBase + v.id.videoId} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-          <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '14px', alignItems: 'flex-start', marginBottom: '8px', cursor: 'pointer' }}>
-            <img src={v.snippet.thumbnails.medium.url} style={{ width: '120px', height: '72px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: '0 0 4px' }}>{v.snippet.title}</p>
-              <p style={{ fontSize: '13px', color: '#1D9E75', margin: '0 0 6px', fontWeight: 500 }}>{v.snippet.channelTitle}</p>
-              <p style={{ fontSize: '13px', color: '#0F6E56', margin: '0 0 8px', lineHeight: 1.5, opacity: 0.85 }}>
-                {v.snippet.description
-                  ? v.snippet.description.slice(0, 120) + (v.snippet.description.length > 120 ? '...' : '')
-                  : 'Click to watch this video on YouTube.'}
-              </p>
-              <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
-            </div>
-          </div>
-        </a>
-      ));
+    const items = getCurrentItems(activeTab);
+
+    if (pageLoading) {
+      return (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <div style={{ width: '32px', height: '32px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 1s linear infinite' }} />
+          <p style={{ fontSize: '14px', color: '#1D9E75' }}>Loading more results...</p>
+        </div>
+      );
     }
 
-    const items = results[activeTab] || [];
-    return items.map((item: any, i: number) => (
-      <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-        <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-            <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: 0 }}>{item.title}</p>
-            <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
-          </div>
-          <p style={{ fontSize: '13px', color: '#0F6E56', margin: 0, lineHeight: 1.5 }}>{item.snippet}</p>
-        </div>
-      </a>
-    ));
+    if (activeTab === 'videos') {
+      return (
+        <>
+          {items.map((v: any, i: number) => (
+            <a key={i} href={ytBase + v.id.videoId} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+              <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '14px', alignItems: 'flex-start', marginBottom: '8px', cursor: 'pointer' }}>
+                <img src={v.snippet.thumbnails.medium.url} style={{ width: '120px', height: '72px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: '0 0 4px' }}>{v.snippet.title}</p>
+                  <p style={{ fontSize: '13px', color: '#1D9E75', margin: '0 0 6px', fontWeight: 500 }}>{v.snippet.channelTitle}</p>
+                  <p style={{ fontSize: '13px', color: '#0F6E56', margin: '0 0 8px', lineHeight: 1.5, opacity: 0.85 }}>
+                    {v.snippet.description ? v.snippet.description.slice(0, 120) + (v.snippet.description.length > 120 ? '...' : '') : 'Click to watch this video on YouTube.'}
+                  </p>
+                  <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
+                </div>
+              </div>
+            </a>
+          ))}
+          {renderPagination('videos')}
+        </>
+      );
+    }
+
+    return (
+      <>
+        {items.map((item: any, i: number) => (
+          <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: 0 }}>{item.title}</p>
+                <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
+              </div>
+              <p style={{ fontSize: '13px', color: '#0F6E56', margin: 0, lineHeight: 1.5 }}>{item.snippet}</p>
+            </div>
+          </a>
+        ))}
+        {renderPagination(activeTab)}
+      </>
+    );
   };
 
   return (
@@ -242,17 +358,15 @@ export default function Home() {
         @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
       `}</style>
 
-      {/* Top Navbar with search */}
-      <nav style={{ background: 'rgba(200, 234, 217, 0.85)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '14px', position: 'sticky', top: 0, zIndex: 10 }}>
+      {/* Navbar */}
+      <nav style={{ background: 'rgba(200,234,217,0.9)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '14px', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#9FE1CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontSize: '14px' }}>✦</span>
           </div>
           <span style={{ fontSize: '15px', fontWeight: 500, color: '#085041' }}>StudyAI</span>
         </div>
-
-        {/* Search bar in navbar */}
-        <div style={{ flex: 1, display: 'flex', gap: '8px', background: 'white', padding: '6px 8px', borderRadius: '12px', border: '1px solid #9FE1CB', boxShadow: '0 2px 12px rgba(29,158,117,0.08)' }}>
+        <div style={{ flex: 1, display: 'flex', gap: '8px', background: 'white', padding: '6px 8px', borderRadius: '12px', border: '1px solid #9FE1CB' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px' }}>🔍</span>
             <input
@@ -267,7 +381,6 @@ export default function Home() {
             {loading ? 'Searching...' : 'Search →'}
           </button>
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           {session ? (
             <>
@@ -284,7 +397,7 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero — only shown before first search */}
+      {/* Hero — only before first search */}
       {!hasSearched && (
         <div style={{ padding: '80px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 40%, #f4faf7 100%)' }}>
           <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
@@ -301,65 +414,65 @@ export default function Home() {
         </div>
       )}
 
-      {/* Results layout — sidebar + content */}
+      {/* Main layout */}
       {hasSearched && (
-        <div style={{ display: 'flex', maxWidth: '1100px', margin: '0 auto', padding: '24px 16px', gap: '20px' }}>
+        <div style={{ display: 'flex', minHeight: 'calc(100vh - 60px)' }}>
 
-          {/* Left Sidebar */}
-          <div style={{ width: '180px', flexShrink: 0 }}>
-            <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '10px', position: 'sticky', top: '72px' }}>
-              {results && TABS.map(tab => {
+          {/* Sidebar — flush to left edge */}
+          <div style={{ width: '200px', flexShrink: 0, background: 'white', borderRight: '0.5px solid #D3F0E6' }}>
+            <div style={{ padding: '16px 10px', position: 'sticky', top: '60px' }}>
+              {TABS.map((tab, idx) => {
                 const count = getResultCount(tab.id);
                 return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      if (tab.id === 'tutor') initializeTutor();
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '9px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: activeTab === tab.id ? '#1D9E75' : 'transparent',
-                      color: activeTab === tab.id ? 'white' : '#0F6E56',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: activeTab === tab.id ? 500 : 400,
-                      textAlign: 'left',
-                      marginBottom: tab.id === 'textbooks' ? '4px' : '2px',
-                    }}
-                  >
-                    <span style={{ fontSize: '14px' }}>{tab.icon}</span>
-                    <span style={{ flex: 1 }}>{tab.label}</span>
-                    {count !== null && count > 0 && (
-                      <span style={{
-                        fontSize: '10px',
-                        background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#E1F5EE',
-                        color: activeTab === tab.id ? 'white' : '#0F6E56',
-                        padding: '1px 6px',
-                        borderRadius: '10px',
-                      }}>
-                        {count}
-                      </span>
+                  <div key={tab.id}>
+                    {tab.id === 'tutor' && (
+                      <div style={{ borderTop: '0.5px solid #D3F0E6', margin: '8px 4px' }} />
                     )}
-                  </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        if (tab.id === 'tutor') initializeTutor();
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: activeTab === tab.id ? '#1D9E75' : 'transparent',
+                        color: activeTab === tab.id ? 'white' : '#0F6E56',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: activeTab === tab.id ? 500 : 400,
+                        textAlign: 'left',
+                        marginBottom: '2px',
+                      }}
+                    >
+                      <span style={{ fontSize: '15px' }}>{tab.icon}</span>
+                      <span style={{ flex: 1 }}>{tab.label}</span>
+                      {count !== null && count > 0 && (
+                        <span style={{
+                          fontSize: '11px',
+                          background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#E1F5EE',
+                          color: activeTab === tab.id ? 'white' : '#0F6E56',
+                          padding: '1px 7px',
+                          borderRadius: '10px',
+                          fontWeight: 500,
+                        }}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 );
               })}
-              {!results && TABS.map(tab => (
-                <div key={tab.id} style={{ padding: '9px 12px', borderRadius: '8px', marginBottom: '2px', background: '#F4FAF7', height: '36px' }} />
-              ))}
-              {/* Separator before AI Tutor */}
-              <div style={{ borderTop: '0.5px solid #D3F0E6', margin: '6px 4px' }} />
             </div>
           </div>
 
-          {/* Main content */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Results area */}
+          <div style={{ flex: 1, padding: '24px 28px', minWidth: 0 }}>
             {loading && (
               <div style={{ textAlign: 'center', padding: '80px 0' }}>
                 <div style={{ width: '36px', height: '36px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
@@ -370,7 +483,7 @@ export default function Home() {
             {results && !loading && (
               <>
                 {results.summary && (
-                  <div style={{ background: 'white', border: '0.5px solid #9FE1CB', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', display: 'flex', gap: '12px' }}>
+                  <div style={{ background: 'white', border: '0.5px solid #9FE1CB', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', gap: '12px' }}>
                     <div style={{ width: '8px', height: '8px', background: '#1D9E75', borderRadius: '50%', marginTop: '6px', flexShrink: 0 }} />
                     <p style={{ fontSize: '15px', color: '#085041', lineHeight: 1.6, margin: 0 }}>{results.summary}</p>
                   </div>
@@ -408,13 +521,11 @@ export default function Home() {
               {chatMessages.map((msg, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                   <div style={{
-                    maxWidth: '85%',
-                    padding: '8px 12px',
+                    maxWidth: '85%', padding: '8px 12px',
                     borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                     background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
                     color: msg.role === 'user' ? 'white' : '#085041',
-                    fontSize: '13px',
-                    lineHeight: 1.5,
+                    fontSize: '13px', lineHeight: 1.5,
                     border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
                     whiteSpace: 'pre-wrap',
                   }}>
@@ -425,7 +536,7 @@ export default function Home() {
               {chatLoading && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <div style={{ padding: '8px 12px', borderRadius: '12px 12px 12px 2px', background: '#F4FAF7', border: '0.5px solid #D3F0E6' }}>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
                       {[0, 1, 2].map(i => (
                         <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
                       ))}
