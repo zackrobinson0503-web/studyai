@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import MathText from './components/MathText';
 
 const TABS = [
   { id: 'videos', label: 'Videos' },
@@ -141,21 +142,18 @@ export default function Home() {
               </div>
             )}
             {tutorMessages.map((msg, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div style={{
-                  maxWidth: '85%',
-                  padding: '10px 14px',
-                  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                  background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
-                  color: msg.role === 'user' ? 'white' : '#085041',
-                  fontSize: '15px',
-                  lineHeight: 1.6,
-                  border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
-                  whiteSpace: 'pre-wrap',
-                }}>
-                  {msg.content}
-                </div>
-              </div>
+<div style={{
+  maxWidth: '85%',
+  padding: '10px 14px',
+  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+  background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
+  border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
+}}>
+  {msg.role === 'assistant'
+    ? <MathText content={msg.content} color="#085041" />
+    : <span style={{ color: 'white', fontSize: '15px', lineHeight: 1.6 }}>{msg.content}</span>
+  }
+</div>
             ))}
             {tutorLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
