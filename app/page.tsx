@@ -101,26 +101,42 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <div style={{ padding: '64px 24px 48px', textAlign: 'center', background: 'var(--color-background-primary)', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
-        <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.05em', margin: '0 0 12px', textTransform: 'uppercase' }}>Powered by AI</p>
-        <h1 style={{ fontSize: '36px', fontWeight: 500, color: 'var(--color-text-primary)', margin: '0 0 10px', lineHeight: 1.2 }}>The smartest way to<br />find study materials</h1>
-        <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '0 0 32px' }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
-        <div style={{ maxWidth: '560px', margin: '0 auto', position: 'relative', display: 'flex', gap: '8px' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '18px', color: 'var(--color-text-secondary)' }}>🔍</span>
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Try 'Organic Chemistry Chapter 5'..."
-              style={{ width: '100%', padding: '14px 18px 14px 42px', borderRadius: '12px', border: '1px solid var(--color-border-secondary)', background: 'var(--color-background-secondary)', color: 'var(--color-text-primary)', fontSize: '14px', boxSizing: 'border-box' }}
-            />
-          </div>
-          <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '14px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-        </div>
+  {/* Hero */}
+<div style={{ padding: '64px 24px 56px', textAlign: 'center', background: 'linear-gradient(135deg, #f0fdf8 0%, #e8f5f0 50%, #f0f9ff 100%)', borderBottom: '0.5px solid var(--color-border-tertiary)', position: 'relative', overflow: 'hidden' }}>
+  
+  {/* Background decorative circles */}
+  <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.5 }} />
+  <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '350px', height: '350px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.3 }} />
+  <div style={{ position: 'absolute', top: '40px', left: '10%', width: '120px', height: '120px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
+
+  <div style={{ position: 'relative', zIndex: 1 }}>
+    <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.08em', margin: '0 0 14px', textTransform: 'uppercase' }}>✦ Powered by AI</p>
+    <h1 style={{ fontSize: '40px', fontWeight: 500, color: '#085041', margin: '0 0 12px', lineHeight: 1.2 }}>The smartest way to<br />find study materials</h1>
+    <p style={{ fontSize: '15px', color: '#0F6E56', margin: '0 0 36px', opacity: 0.8 }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
+    
+    <div style={{ maxWidth: '580px', margin: '0 auto', display: 'flex', gap: '10px', background: 'white', padding: '8px', borderRadius: '16px', boxShadow: '0 4px 24px rgba(29,158,117,0.15)', border: '1px solid #9FE1CB' }}>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '18px' }}>🔍</span>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          placeholder="Try 'Organic Chemistry Chapter 5'..."
+          style={{ width: '100%', padding: '14px 18px 14px 44px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#085041', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
+        />
       </div>
+      <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        {loading ? 'Searching...' : 'Search →'}
+      </button>
+    </div>
+
+    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+      {['Calculus 2', 'Organic Chemistry', 'Data Structures', 'Physics 101'].map(s => (
+        <button key={s} onClick={() => { setQuery(s); }} style={{ fontSize: '12px', color: '#0F6E56', background: 'white', border: '0.5px solid #9FE1CB', padding: '5px 12px', borderRadius: '20px', cursor: 'pointer' }}>{s}</button>
+      ))}
+    </div>
+  </div>
+</div>
 
       {/* Results */}
       <div style={{ maxWidth: '700px', margin: '0 auto', padding: '24px 16px' }}>
