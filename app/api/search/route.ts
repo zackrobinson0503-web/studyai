@@ -4,10 +4,11 @@ import { NextResponse } from 'next/server';
 export const maxDuration = 60;
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-async function serpSearch(query: string, extra: string) {
+async function serpSearch(query: string, extra: string, page: number = 1) {
   const q = encodeURIComponent(query + ' ' + extra);
   const key = process.env.SERP_API_KEY;
-  const res = await fetch(`https://serpapi.com/search?q=${q}&api_key=${key}&num=5`);
+  const start = (page - 1) * 5;
+  const res = await fetch(`https://serpapi.com/search?q=${q}&api_key=${key}&num=5&start=${start}`);
   const data = await res.json();
   return (data.organic_results || []).slice(0, 5).map((item: any) => ({
     title: item.title,
@@ -19,8 +20,29 @@ async function serpSearch(query: string, extra: string) {
 
 export async function POST(request: Request) {
   try {
-    const { className } = await request.json();
+    const { className, page = 1, tab } = await request.json();
 
+    // If paginating a specific tab, only fetch that tab
+    if (page > 1 && tab) {
+      const extraMap: Record<string, string> = {
+        pdfs: 'free PDF study guide filetype:pdf',
+        quizlet: 'quizlet flashcards',
+        problems: 'practice problems with solutions',
+        reddit: 'site:reddit.com',
+        textbooks: 'free textbook solutions',
+      };
+
+      if (tab === 'videos') {
+        const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(className)}&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}&pageToken=`);
+        const ytData = await ytRes.json();
+        return NextResponse.json({ videos: ytData.items || [] });
+      }
+
+      const results = await serpSearch(className, extraMap[tab] || '', page);
+      return NextResponse.json({ [tab]: results });
+    }
+
+    // Initial search — fetch everything
     const claudeRes = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
@@ -38,11 +60,11 @@ export async function POST(request: Request) {
         const ytData = await ytRes.json();
         return ytData.items || [];
       })(),
-      serpSearch(mainQuery, 'free PDF study guide filetype:pdf'),
-      serpSearch(mainQuery, 'quizlet flashcards'),
-      serpSearch(mainQuery, 'practice problems with solutions'),
-      serpSearch(mainQuery, 'site:reddit.com'),
-      serpSearch(mainQuery, 'free textbook solutions'),
+      serpSearch(mainQuery, 'free PDF study guide filetype:pdf', 1),
+      serpSearch(mainQuery, 'quizlet flashcards', 1),
+      serpSearch(mainQuery, 'practice problems with solutions', 1),
+      serpSearch(mainQuery, 'site:reddit.com', 1),
+      serpSearch(mainQuery, 'free textbook solutions', 1),
     ]);
 
     return NextResponse.json({

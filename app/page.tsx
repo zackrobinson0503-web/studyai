@@ -203,12 +203,12 @@ export default function Home() {
             key={p}
             onClick={() => p !== page && loadMoreResults(tabId, p)}
             style={{
-              width: '34px', height: '34px', borderRadius: '8px', border: 'none',
+              width: '34px', height: '34px', borderRadius: '8px',
+              border: p === page ? 'none' : '0.5px solid #D3F0E6',
               background: p === page ? '#1D9E75' : 'white',
               color: p === page ? 'white' : '#0F6E56',
               cursor: p === page ? 'default' : 'pointer',
               fontSize: '13px', fontWeight: p === page ? 600 : 400,
-              border: p === page ? 'none' : '0.5px solid #D3F0E6',
             } as any}
           >
             {p}
