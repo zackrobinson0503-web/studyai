@@ -100,14 +100,19 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero */}
-  {/* Hero */}
+
+    {/* Hero */}
 <div style={{ padding: '64px 24px 56px', textAlign: 'center', background: 'linear-gradient(135deg, #f0fdf8 0%, #e8f5f0 50%, #f0f9ff 100%)', borderBottom: '0.5px solid var(--color-border-tertiary)', position: 'relative', overflow: 'hidden' }}>
   
   {/* Background decorative circles */}
-  <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.5 }} />
-  <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '350px', height: '350px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.3 }} />
-  <div style={{ position: 'absolute', top: '40px', left: '10%', width: '120px', height: '120px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
+  <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.6 }} />
+  <div style={{ position: 'absolute', bottom: '-80px', left: '-80px', width: '350px', height: '350px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.4 }} />
+  <div style={{ position: 'absolute', top: '40px', left: '10%', width: '120px', height: '120px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
+  <div style={{ position: 'absolute', top: '20px', right: '20%', width: '60px', height: '60px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+  <div style={{ position: 'absolute', bottom: '30px', right: '15%', width: '90px', height: '90px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
+  <div style={{ position: 'absolute', bottom: '60px', left: '25%', width: '45px', height: '45px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+  <div style={{ position: 'absolute', top: '50%', right: '5%', width: '70px', height: '70px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.5 }} />
+  <div style={{ position: 'absolute', top: '15%', left: '30%', width: '30px', height: '30px', borderRadius: '50%', background: '#1D9E75', opacity: 0.1 }} />
 
   <div style={{ position: 'relative', zIndex: 1 }}>
     <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.08em', margin: '0 0 14px', textTransform: 'uppercase' }}>✦ Powered by AI</p>
@@ -129,14 +134,21 @@ export default function Home() {
         {loading ? 'Searching...' : 'Search →'}
       </button>
     </div>
+  </div>
+</main>
 
+{/* Results area with subtle bubbles */}
+<div style={{ position: 'relative' }}>
+  <div style={{ position: 'absolute', top: '40px', right: '5%', width: '80px', height: '80px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.5, pointerEvents: 'none' }} />
+  <div style={{ position: 'absolute', top: '120px', left: '3%', width: '50px', height: '50px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2, pointerEvents: 'none' }} />
+  <div style={{ position: 'absolute', top: '200px', right: '8%', width: '35px', height: '35px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15, pointerEvents: 'none' }} />
     <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
       {['Calculus 2', 'Organic Chemistry', 'Data Structures', 'Physics 101'].map(s => (
         <button key={s} onClick={() => { setQuery(s); }} style={{ fontSize: '12px', color: '#0F6E56', background: 'white', border: '0.5px solid #9FE1CB', padding: '5px 12px', borderRadius: '20px', cursor: 'pointer' }}>{s}</button>
       ))}
     </div>
   </div>
-</div>
+</main>
 
       {/* Results */}
       <div style={{ maxWidth: '700px', margin: '0 auto', padding: '24px 16px' }}>
@@ -170,6 +182,7 @@ export default function Home() {
           </>
         )}
       </div>
+    </div>
     </main>
   );
 }
