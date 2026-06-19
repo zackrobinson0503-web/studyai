@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 
 const TABS = [
   { id: 'videos', label: 'Videos' },
@@ -24,6 +25,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('videos');
+  const { data: session } = useSession();
   const [loadingStep, setLoadingStep] = useState('');
 
   async function handleSearch() {
@@ -85,8 +87,14 @@ export default function Home() {
           StudyAI
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button style={{ fontSize: '13px', color: '#534AB7', padding: '5px 12px', border: '0.5px solid #AFA9EC', borderRadius: '6px', background: '#fff', cursor: 'pointer' }}>Sign in</button>
-          <button style={{ fontSize: '13px', color: '#fff', padding: '5px 12px', borderRadius: '6px', background: '#534AB7', border: 'none', cursor: 'pointer' }}>Go Premium</button>
+          {session ? (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <span style={{ fontSize: '13px', color: '#534AB7' }}>{session.user?.name}</span>
+    <button onClick={() => signOut()} style={{ fontSize: '13px', color: '#534AB7', padding: '5px 12px', border: '1px solid #534AB7', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}>Sign out</button>
+  </div>
+) : (
+  <button onClick={() => signIn('google')} style={{ fontSize: '13px', color: '#534AB7', padding: '5px 12px', border: '1px solid #534AB7', borderRadius: '6px', background: 'transparent', cursor: 'pointer' }}>Sign in with Google</button>
+)}
         </div>
       </nav>
 
