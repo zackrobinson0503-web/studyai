@@ -24,21 +24,18 @@ export default function Home() {
   const [loadingStep, setLoadingStep] = useState('');
   const [currentTopic, setCurrentTopic] = useState('');
 
-  // Floating chat bubble state
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  // AI Tutor tab state
   const [tutorMessages, setTutorMessages] = useState<Message[]>([]);
   const [tutorInput, setTutorInput] = useState('');
   const [tutorLoading, setTutorLoading] = useState(false);
   const [tutorInitialized, setTutorInitialized] = useState(false);
   const tutorBottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll chat windows
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
@@ -70,7 +67,6 @@ export default function Home() {
     setLoading(false);
   }
 
-  // Initialize tutor with starter questions when tab is first opened
   async function initializeTutor() {
     if (tutorInitialized || !currentTopic) return;
     setTutorInitialized(true);
@@ -129,7 +125,6 @@ export default function Home() {
     if (activeTab === 'tutor') {
       return (
         <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', overflow: 'hidden' }}>
-          {/* Tutor header */}
           <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>✦</div>
             <div>
@@ -138,8 +133,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Messages area */}
-          <div style={{ height: '380px', overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ height: '520px', overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {tutorMessages.length === 0 && !tutorLoading && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.6 }}>
                 <span style={{ fontSize: '32px' }}>📚</span>
@@ -177,7 +171,6 @@ export default function Home() {
             <div ref={tutorBottomRef} />
           </div>
 
-          {/* Input */}
           <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '12px', display: 'flex', gap: '8px' }}>
             <input
               value={tutorInput}
@@ -232,7 +225,6 @@ export default function Home() {
   return (
     <main style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 25%, #f4faf7 50%, #ffffff 75%)', fontFamily: 'var(--font-sans)' }}>
 
-      {/* Bounce animation for typing dots */}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
@@ -250,12 +242,12 @@ export default function Home() {
           {session ? (
             <>
               <span style={{ fontSize: '13px', color: '#0F6E56' }}>{session.user?.name}</span>
-              <button onClick={() => signOut()} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '0.5px solid #9FE1CB', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' }}>Sign out</button>
+              <button onClick={() => signOut()} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign out</button>
               <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
             </>
           ) : (
             <>
-              <button onClick={() => signIn('google')} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '0.5px solid #9FE1CB', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' }}>Sign in</button>
+              <button onClick={() => signIn('google')} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign in</button>
               <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
             </>
           )}
@@ -339,10 +331,8 @@ export default function Home() {
 
       {/* Floating Chat Bubble */}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
-        {/* Chat Panel */}
         {chatOpen && (
           <div style={{ position: 'absolute', bottom: '64px', right: 0, width: '320px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 40px rgba(8,80,65,0.18)', border: '0.5px solid #9FE1CB', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {/* Chat header */}
             <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✦</div>
@@ -354,7 +344,6 @@ export default function Home() {
               <button onClick={() => setChatOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
 
-            {/* Messages */}
             <div style={{ height: '280px', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {chatMessages.length === 0 && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: 0.6 }}>
@@ -395,7 +384,6 @@ export default function Home() {
               <div ref={chatBottomRef} />
             </div>
 
-            {/* Input */}
             <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '10px', display: 'flex', gap: '6px' }}>
               <input
                 value={chatInput}
@@ -415,7 +403,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Bubble button */}
         <button
           onClick={() => setChatOpen(o => !o)}
           style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #1D9E75, #085041)', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(29,158,117,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', transition: 'transform 0.2s' }}
