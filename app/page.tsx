@@ -5,13 +5,13 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import MathText from './components/MathText';
 
 const TABS = [
-  { id: 'videos', label: 'Videos' },
-  { id: 'pdfs', label: 'PDFs' },
-  { id: 'quizlet', label: 'Quizlet' },
-  { id: 'problems', label: 'Problems' },
-  { id: 'reddit', label: 'Reddit' },
-  { id: 'textbooks', label: 'Textbooks' },
-  { id: 'tutor', label: '✦ AI Tutor' },
+  { id: 'videos', label: 'Videos', icon: '▶' },
+  { id: 'pdfs', label: 'PDFs', icon: '📄' },
+  { id: 'quizlet', label: 'Quizlet', icon: '📚' },
+  { id: 'problems', label: 'Problems', icon: '✏️' },
+  { id: 'reddit', label: 'Reddit', icon: '💬' },
+  { id: 'textbooks', label: 'Textbooks', icon: '📖' },
+  { id: 'tutor', label: 'AI Tutor', icon: '✦' },
 ];
 
 type Message = { role: 'user' | 'assistant'; content: string };
@@ -24,6 +24,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('videos');
   const [loadingStep, setLoadingStep] = useState('');
   const [currentTopic, setCurrentTopic] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -49,6 +50,7 @@ export default function Home() {
     if (!query.trim()) return;
     setLoading(true);
     setResults(null);
+    setHasSearched(true);
     setActiveTab('videos');
     setTutorMessages([]);
     setTutorInitialized(false);
@@ -120,6 +122,13 @@ export default function Home() {
 
   const ytBase = 'https://www.youtube.com/watch?v=';
 
+  const getResultCount = (tabId: string) => {
+    if (!results) return 0;
+    if (tabId === 'videos') return (results.videos || []).length;
+    if (tabId === 'tutor') return null;
+    return (results[tabId] || []).length;
+  };
+
   const renderResults = () => {
     if (!results) return null;
 
@@ -133,7 +142,6 @@ export default function Home() {
               <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>Topic: {currentTopic}</p>
             </div>
           </div>
-
           <div style={{ height: '520px', overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {tutorMessages.length === 0 && !tutorLoading && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.6 }}>
@@ -142,18 +150,20 @@ export default function Home() {
               </div>
             )}
             {tutorMessages.map((msg, i) => (
-<div style={{
-  maxWidth: '85%',
-  padding: '10px 14px',
-  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-  background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
-  border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
-}}>
-  {msg.role === 'assistant'
-    ? <MathText content={msg.content} color="#085041" />
-    : <span style={{ color: 'white', fontSize: '15px', lineHeight: 1.6 }}>{msg.content}</span>
-  }
-</div>
+              <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                <div style={{
+                  maxWidth: '85%',
+                  padding: '10px 14px',
+                  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                  background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
+                  border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
+                }}>
+                  {msg.role === 'assistant'
+                    ? <MathText content={msg.content} color="#085041" />
+                    : <span style={{ color: 'white', fontSize: '15px', lineHeight: 1.6 }}>{msg.content}</span>
+                  }
+                </div>
+              </div>
             ))}
             {tutorLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
@@ -168,7 +178,6 @@ export default function Home() {
             )}
             <div ref={tutorBottomRef} />
           </div>
-
           <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '12px', display: 'flex', gap: '8px' }}>
             <input
               value={tutorInput}
@@ -194,12 +203,17 @@ export default function Home() {
       const videos = results.videos || [];
       return videos.map((v: any, i: number) => (
         <a key={i} href={ytBase + v.id.videoId} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-          <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }}>
-            <img src={v.snippet.thumbnails.medium.url} style={{ width: '88px', height: '56px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+          <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '14px', alignItems: 'flex-start', marginBottom: '8px', cursor: 'pointer' }}>
+            <img src={v.snippet.thumbnails.medium.url} style={{ width: '120px', height: '72px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: '0 0 4px' }}>{v.snippet.title}</p>
-              <p style={{ fontSize: '13px', color: '#0F6E56', margin: '0 0 4px' }}>{v.snippet.channelTitle}</p>
-              <span style={{ fontSize: '12px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
+              <p style={{ fontSize: '13px', color: '#1D9E75', margin: '0 0 6px', fontWeight: 500 }}>{v.snippet.channelTitle}</p>
+              <p style={{ fontSize: '13px', color: '#0F6E56', margin: '0 0 8px', lineHeight: 1.5, opacity: 0.85 }}>
+                {v.snippet.description
+                  ? v.snippet.description.slice(0, 120) + (v.snippet.description.length > 120 ? '...' : '')
+                  : 'Click to watch this video on YouTube.'}
+              </p>
+              <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
             </div>
           </div>
         </a>
@@ -212,7 +226,7 @@ export default function Home() {
         <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
             <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: 0 }}>{item.title}</p>
-            <span style={{ fontSize: '12px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
+            <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
           </div>
           <p style={{ fontSize: '13px', color: '#0F6E56', margin: 0, lineHeight: 1.5 }}>{item.snippet}</p>
         </div>
@@ -221,111 +235,152 @@ export default function Home() {
   };
 
   return (
-    <main style={{ minHeight: '100vh', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 25%, #f4faf7 50%, #ffffff 75%)', fontFamily: 'var(--font-sans)' }}>
+    <main style={{ minHeight: '100vh', background: '#f4faf7', fontFamily: 'var(--font-sans)' }}>
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
       `}</style>
 
-      {/* Navbar */}
-      <nav style={{ background: 'rgba(200, 234, 217, 0.7)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: '#9FE1CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '16px' }}>✦</span>
+      {/* Top Navbar with search */}
+      <nav style={{ background: 'rgba(200, 234, 217, 0.85)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '14px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#9FE1CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '14px' }}>✦</span>
           </div>
           <span style={{ fontSize: '15px', fontWeight: 500, color: '#085041' }}>StudyAI</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+
+        {/* Search bar in navbar */}
+        <div style={{ flex: 1, display: 'flex', gap: '8px', background: 'white', padding: '6px 8px', borderRadius: '12px', border: '1px solid #9FE1CB', boxShadow: '0 2px 12px rgba(29,158,117,0.08)' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px' }}>🔍</span>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="Try 'Organic Chemistry Chapter 5'..."
+              style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#085041', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
+            />
+          </div>
+          <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            {loading ? 'Searching...' : 'Search →'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           {session ? (
             <>
               <span style={{ fontSize: '13px', color: '#0F6E56' }}>{session.user?.name}</span>
-              <button onClick={() => signOut()} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign out</button>
-              <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
+              <button onClick={() => signOut()} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign out</button>
+              <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
             </>
           ) : (
             <>
-              <button onClick={() => signIn('google')} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign in</button>
-              <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
+              <button onClick={() => signIn('google')} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign in</button>
+              <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
             </>
           )}
         </div>
       </nav>
 
-      {/* Hero */}
-      <div style={{ padding: '72px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
-        <div style={{ position: 'absolute', top: '60px', left: '18%', width: '50px', height: '50px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', top: '10px', right: '8%', width: '80px', height: '80px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
-        <div style={{ position: 'absolute', top: '30px', right: '22%', width: '40px', height: '40px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', bottom: '40px', left: '8%', width: '70px', height: '70px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
-        <div style={{ position: 'absolute', bottom: '20px', left: '30%', width: '30px', height: '30px', borderRadius: '50%', background: '#1D9E75', opacity: 0.1 }} />
-        <div style={{ position: 'absolute', bottom: '50px', right: '10%', width: '60px', height: '60px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', bottom: '30px', right: '28%', width: '20px', height: '20px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
-        <div style={{ position: 'absolute', top: '45%', left: '3%', width: '35px', height: '35px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15 }} />
-        <div style={{ position: 'absolute', top: '40%', right: '3%', width: '45px', height: '45px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
-
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.08em', margin: '0 0 14px', textTransform: 'uppercase' }}>✦ Powered by AI</p>
-          <h1 style={{ fontSize: '42px', fontWeight: 500, color: '#085041', margin: '0 0 12px', lineHeight: 1.2 }}>The smartest way to<br />find study materials</h1>
-          <p style={{ fontSize: '15px', color: '#0F6E56', margin: '0 0 40px', opacity: 0.8 }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
-          <div style={{ maxWidth: '580px', margin: '0 auto', display: 'flex', gap: '10px', background: 'white', padding: '8px', borderRadius: '16px', boxShadow: '0 4px 32px rgba(29,158,117,0.15)', border: '1px solid #9FE1CB' }}>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', fontSize: '18px' }}>🔍</span>
-              <input
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                placeholder="Try 'Organic Chemistry Chapter 5'..."
-                style={{ width: '100%', padding: '14px 18px 14px 44px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#085041', fontSize: '15px', boxSizing: 'border-box', outline: 'none' }}
-              />
-            </div>
-            <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '14px 28px', borderRadius: '10px', fontSize: '14px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              {loading ? 'Searching...' : 'Search →'}
-            </button>
+      {/* Hero — only shown before first search */}
+      {!hasSearched && (
+        <div style={{ padding: '80px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 40%, #f4faf7 100%)' }}>
+          <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
+          <div style={{ position: 'absolute', top: '60px', left: '18%', width: '50px', height: '50px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+          <div style={{ position: 'absolute', top: '10px', right: '8%', width: '80px', height: '80px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
+          <div style={{ position: 'absolute', top: '30px', right: '22%', width: '40px', height: '40px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
+          <div style={{ position: 'absolute', bottom: '40px', left: '8%', width: '70px', height: '70px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
+          <div style={{ position: 'absolute', bottom: '50px', right: '10%', width: '60px', height: '60px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.08em', margin: '0 0 14px', textTransform: 'uppercase' }}>✦ Powered by AI</p>
+            <h1 style={{ fontSize: '42px', fontWeight: 500, color: '#085041', margin: '0 0 12px', lineHeight: 1.2 }}>The smartest way to<br />find study materials</h1>
+            <p style={{ fontSize: '15px', color: '#0F6E56', margin: 0, opacity: 0.8 }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Results */}
-      <div style={{ maxWidth: '700px', margin: '0 auto', padding: '24px 16px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '60px', right: '-30px', width: '60px', height: '60px', borderRadius: '50%', background: '#E1F5EE', opacity: 0.4, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '200px', left: '-30px', width: '45px', height: '45px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: '400px', right: '-20px', width: '35px', height: '35px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.15, pointerEvents: 'none' }} />
+      {/* Results layout — sidebar + content */}
+      {hasSearched && (
+        <div style={{ display: 'flex', maxWidth: '1100px', margin: '0 auto', padding: '24px 16px', gap: '20px' }}>
 
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '48px 0' }}>
-            <div style={{ width: '36px', height: '36px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
-            <p style={{ fontSize: '15px', color: '#1D9E75', fontWeight: 500 }}>{loadingStep}</p>
+          {/* Left Sidebar */}
+          <div style={{ width: '180px', flexShrink: 0 }}>
+            <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '10px', position: 'sticky', top: '72px' }}>
+              {results && TABS.map(tab => {
+                const count = getResultCount(tab.id);
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id === 'tutor') initializeTutor();
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: activeTab === tab.id ? '#1D9E75' : 'transparent',
+                      color: activeTab === tab.id ? 'white' : '#0F6E56',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: activeTab === tab.id ? 500 : 400,
+                      textAlign: 'left',
+                      marginBottom: tab.id === 'textbooks' ? '4px' : '2px',
+                    }}
+                  >
+                    <span style={{ fontSize: '14px' }}>{tab.icon}</span>
+                    <span style={{ flex: 1 }}>{tab.label}</span>
+                    {count !== null && count > 0 && (
+                      <span style={{
+                        fontSize: '10px',
+                        background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#E1F5EE',
+                        color: activeTab === tab.id ? 'white' : '#0F6E56',
+                        padding: '1px 6px',
+                        borderRadius: '10px',
+                      }}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {!results && TABS.map(tab => (
+                <div key={tab.id} style={{ padding: '9px 12px', borderRadius: '8px', marginBottom: '2px', background: '#F4FAF7', height: '36px' }} />
+              ))}
+              {/* Separator before AI Tutor */}
+              <div style={{ borderTop: '0.5px solid #D3F0E6', margin: '6px 4px' }} />
+            </div>
           </div>
-        )}
 
-        {results && !loading && (
-          <>
-            {results.summary && (
-              <div style={{ background: 'white', border: '0.5px solid #9FE1CB', borderRadius: '12px', padding: '16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
-                <div style={{ width: '8px', height: '8px', background: '#1D9E75', borderRadius: '50%', marginTop: '6px', flexShrink: 0 }} />
-                <p style={{ fontSize: '15px', color: '#085041', lineHeight: 1.6, margin: 0 }}>{results.summary}</p>
+          {/* Main content */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {loading && (
+              <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                <div style={{ width: '36px', height: '36px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: '15px', color: '#1D9E75', fontWeight: 500 }}>{loadingStep}</p>
               </div>
             )}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-              {TABS.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    if (tab.id === 'tutor') initializeTutor();
-                  }}
-                  style={{ fontSize: '13px', padding: '6px 14px', borderRadius: '20px', border: activeTab === tab.id ? 'none' : '0.5px solid #9FE1CB', background: activeTab === tab.id ? '#1D9E75' : 'transparent', color: activeTab === tab.id ? 'white' : '#0F6E56', cursor: 'pointer', fontWeight: activeTab === tab.id ? 500 : 400 }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            <div>{renderResults()}</div>
-          </>
-        )}
-      </div>
+
+            {results && !loading && (
+              <>
+                {results.summary && (
+                  <div style={{ background: 'white', border: '0.5px solid #9FE1CB', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', display: 'flex', gap: '12px' }}>
+                    <div style={{ width: '8px', height: '8px', background: '#1D9E75', borderRadius: '50%', marginTop: '6px', flexShrink: 0 }} />
+                    <p style={{ fontSize: '15px', color: '#085041', lineHeight: 1.6, margin: 0 }}>{results.summary}</p>
+                  </div>
+                )}
+                <div>{renderResults()}</div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floating Chat Bubble */}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
@@ -341,7 +396,6 @@ export default function Home() {
               </div>
               <button onClick={() => setChatOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
-
             <div style={{ height: '280px', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {chatMessages.length === 0 && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: 0.6 }}>
@@ -381,7 +435,6 @@ export default function Home() {
               )}
               <div ref={chatBottomRef} />
             </div>
-
             <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '10px', display: 'flex', gap: '6px' }}>
               <input
                 value={chatInput}
@@ -390,17 +443,10 @@ export default function Home() {
                 placeholder="Ask anything..."
                 style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '0.5px solid #D3F0E6', color: '#085041', fontSize: '13px', outline: 'none' }}
               />
-              <button
-                onClick={sendChatMessage}
-                disabled={chatLoading}
-                style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
-              >
-                →
-              </button>
+              <button onClick={sendChatMessage} disabled={chatLoading} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>→</button>
             </div>
           </div>
         )}
-
         <button
           onClick={() => setChatOpen(o => !o)}
           style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #1D9E75, #085041)', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(29,158,117,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', transition: 'transform 0.2s' }}
