@@ -128,8 +128,8 @@ export default function Home() {
           <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>✦</div>
             <div>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'white' }}>AI Tutor</p>
-              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.75)' }}>Topic: {currentTopic}</p>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'white' }}>AI Tutor</p>
+              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>Topic: {currentTopic}</p>
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export default function Home() {
             {tutorMessages.length === 0 && !tutorLoading && (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.6 }}>
                 <span style={{ fontSize: '32px' }}>📚</span>
-                <p style={{ fontSize: '13px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>Search for a topic to start your tutoring session</p>
+                <p style={{ fontSize: '15px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>Search for a topic to start your tutoring session</p>
               </div>
             )}
             {tutorMessages.map((msg, i) => (
@@ -148,7 +148,7 @@ export default function Home() {
                   borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                   background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
                   color: msg.role === 'user' ? 'white' : '#085041',
-                  fontSize: '13px',
+                  fontSize: '15px',
                   lineHeight: 1.6,
                   border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
                   whiteSpace: 'pre-wrap',
@@ -178,12 +178,12 @@ export default function Home() {
               onKeyDown={e => e.key === 'Enter' && sendTutorMessage()}
               placeholder={currentTopic ? 'Ask your tutor anything...' : 'Search for a topic first'}
               disabled={!currentTopic}
-              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '0.5px solid #D3F0E6', background: currentTopic ? 'white' : '#F9FFFE', color: '#085041', fontSize: '13px', outline: 'none' }}
+              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '0.5px solid #D3F0E6', background: currentTopic ? 'white' : '#F9FFFE', color: '#085041', fontSize: '15px', outline: 'none' }}
             />
             <button
               onClick={sendTutorMessage}
               disabled={!currentTopic || tutorLoading}
-              style={{ background: currentTopic ? '#1D9E75' : '#D3F0E6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '13px', cursor: currentTopic ? 'pointer' : 'not-allowed', fontWeight: 500 }}
+              style={{ background: currentTopic ? '#1D9E75' : '#D3F0E6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '15px', cursor: currentTopic ? 'pointer' : 'not-allowed', fontWeight: 500 }}
             >
               Send
             </button>
@@ -199,9 +199,9 @@ export default function Home() {
           <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '8px', cursor: 'pointer' }}>
             <img src={v.snippet.thumbnails.medium.url} style={{ width: '88px', height: '56px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: '14px', fontWeight: 500, color: '#085041', margin: '0 0 4px' }}>{v.snippet.title}</p>
-              <p style={{ fontSize: '12px', color: '#0F6E56', margin: '0 0 4px' }}>{v.snippet.channelTitle}</p>
-              <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
+              <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: '0 0 4px' }}>{v.snippet.title}</p>
+              <p style={{ fontSize: '13px', color: '#0F6E56', margin: '0 0 4px' }}>{v.snippet.channelTitle}</p>
+              <span style={{ fontSize: '12px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
             </div>
           </div>
         </a>
@@ -213,10 +213,10 @@ export default function Home() {
       <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
         <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-            <p style={{ fontSize: '14px', fontWeight: 500, color: '#085041', margin: 0 }}>{item.title}</p>
-            <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
+            <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: 0 }}>{item.title}</p>
+            <span style={{ fontSize: '12px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
           </div>
-          <p style={{ fontSize: '12px', color: '#0F6E56', margin: 0, lineHeight: 1.5 }}>{item.snippet}</p>
+          <p style={{ fontSize: '13px', color: '#0F6E56', margin: 0, lineHeight: 1.5 }}>{item.snippet}</p>
         </div>
       </a>
     ));
@@ -298,7 +298,7 @@ export default function Home() {
         {loading && (
           <div style={{ textAlign: 'center', padding: '48px 0' }}>
             <div style={{ width: '36px', height: '36px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
-            <p style={{ fontSize: '14px', color: '#1D9E75', fontWeight: 500 }}>{loadingStep}</p>
+            <p style={{ fontSize: '15px', color: '#1D9E75', fontWeight: 500 }}>{loadingStep}</p>
           </div>
         )}
 
@@ -307,7 +307,7 @@ export default function Home() {
             {results.summary && (
               <div style={{ background: 'white', border: '0.5px solid #9FE1CB', borderRadius: '12px', padding: '16px', marginBottom: '20px', display: 'flex', gap: '12px' }}>
                 <div style={{ width: '8px', height: '8px', background: '#1D9E75', borderRadius: '50%', marginTop: '6px', flexShrink: 0 }} />
-                <p style={{ fontSize: '13px', color: '#085041', lineHeight: 1.6, margin: 0 }}>{results.summary}</p>
+                <p style={{ fontSize: '15px', color: '#085041', lineHeight: 1.6, margin: 0 }}>{results.summary}</p>
               </div>
             )}
             <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
@@ -318,7 +318,7 @@ export default function Home() {
                     setActiveTab(tab.id);
                     if (tab.id === 'tutor') initializeTutor();
                   }}
-                  style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: activeTab === tab.id ? 'none' : '0.5px solid #9FE1CB', background: activeTab === tab.id ? '#1D9E75' : 'transparent', color: activeTab === tab.id ? 'white' : '#0F6E56', cursor: 'pointer', fontWeight: activeTab === tab.id ? 500 : 400 }}
+                  style={{ fontSize: '13px', padding: '6px 14px', borderRadius: '20px', border: activeTab === tab.id ? 'none' : '0.5px solid #9FE1CB', background: activeTab === tab.id ? '#1D9E75' : 'transparent', color: activeTab === tab.id ? 'white' : '#0F6E56', cursor: 'pointer', fontWeight: activeTab === tab.id ? 500 : 400 }}
                 >
                   {tab.label}
                 </button>
@@ -337,8 +337,8 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✦</div>
                 <div>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'white' }}>Study Assistant</p>
-                  {currentTopic && <p style={{ margin: 0, fontSize: '10px', color: 'rgba(255,255,255,0.75)' }}>on: {currentTopic}</p>}
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'white' }}>Study Assistant</p>
+                  {currentTopic && <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.75)' }}>on: {currentTopic}</p>}
                 </div>
               </div>
               <button onClick={() => setChatOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
@@ -348,7 +348,7 @@ export default function Home() {
               {chatMessages.length === 0 && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: 0.6 }}>
                   <span style={{ fontSize: '28px' }}>💬</span>
-                  <p style={{ fontSize: '12px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>
+                  <p style={{ fontSize: '13px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>
                     {currentTopic ? `Ask me anything about "${currentTopic}"` : 'Ask me anything about your studies'}
                   </p>
                 </div>
@@ -361,7 +361,7 @@ export default function Home() {
                     borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                     background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
                     color: msg.role === 'user' ? 'white' : '#085041',
-                    fontSize: '12px',
+                    fontSize: '13px',
                     lineHeight: 1.5,
                     border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
                     whiteSpace: 'pre-wrap',
@@ -390,12 +390,12 @@ export default function Home() {
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
                 placeholder="Ask anything..."
-                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '0.5px solid #D3F0E6', color: '#085041', fontSize: '12px', outline: 'none' }}
+                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '0.5px solid #D3F0E6', color: '#085041', fontSize: '13px', outline: 'none' }}
               />
               <button
                 onClick={sendChatMessage}
                 disabled={chatLoading}
-                style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}
+                style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
               >
                 →
               </button>
