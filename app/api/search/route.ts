@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 export const maxDuration = 60;
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-async function serpSearch(query: string, extra: string, page: number = 1) {
-  const q = encodeURIComponent(query + ' ' + extra);
+async function serpSearch(query: string, page: number = 1) {
+  const q = encodeURIComponent(query);
   const key = process.env.SERP_API_KEY;
   const start = (page - 1) * 5;
   const res = await fetch(`https://serpapi.com/search?q=${q}&api_key=${key}&num=5&start=${start}`);
@@ -22,27 +22,27 @@ export async function POST(request: Request) {
   try {
     const { className, page = 1, tab } = await request.json();
 
-    // If paginating a specific tab, only fetch that tab
     if (page > 1 && tab) {
-      const extraMap: Record<string, string> = {
-        pdfs: 'free PDF study guide filetype:pdf',
-        quizlet: 'quizlet flashcards',
-        problems: 'practice problems with solutions',
-        reddit: 'site:reddit.com',
-        textbooks: 'free textbook solutions',
+      const queryMap: Record<string, string> = {
+        pdfs: `${className} lecture notes filetype:pdf site:edu OR site:mit.edu OR site:stanford.edu`,
+        quizlet: `site:quizlet.com ${className} flashcards study`,
+        problems: `${className} practice problems solutions worksheet`,
+        reddit: `site:reddit.com/r/learnmath OR site:reddit.com/r/college OR site:reddit.com/r/AskAcademia ${className}`,
+        textbooks: `${className} textbook solutions openstax OR libretexts OR scribd`,
+        videos: className,
       };
 
       if (tab === 'videos') {
-        const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(className)}&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}&pageToken=`);
+        const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(className)}&type=video&maxResults=6&key=${process.env.YOUTUBE_API_KEY}`);
         const ytData = await ytRes.json();
         return NextResponse.json({ videos: ytData.items || [] });
       }
 
-      const results = await serpSearch(className, extraMap[tab] || '', page);
+      const results = await serpSearch(queryMap[tab] || className, page);
       return NextResponse.json({ [tab]: results });
     }
 
-    // Initial search — fetch everything
+    // Initial full search
     const claudeRes = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
@@ -60,11 +60,11 @@ export async function POST(request: Request) {
         const ytData = await ytRes.json();
         return ytData.items || [];
       })(),
-      serpSearch(mainQuery, 'free PDF study guide filetype:pdf', 1),
-      serpSearch(mainQuery, 'quizlet flashcards', 1),
-      serpSearch(mainQuery, 'practice problems with solutions', 1),
-      serpSearch(mainQuery, 'site:reddit.com', 1),
-      serpSearch(mainQuery, 'free textbook solutions', 1),
+      serpSearch(`${mainQuery} lecture notes filetype:pdf site:edu OR site:mit.edu OR site:stanford.edu`),
+      serpSearch(`site:quizlet.com ${mainQuery} flashcards study`),
+      serpSearch(`${mainQuery} practice problems with solutions worksheet`),
+      serpSearch(`site:reddit.com ${mainQuery} help study tips`),
+      serpSearch(`${mainQuery} textbook openstax OR libretexts OR scribd free`),
     ]);
 
     return NextResponse.json({
