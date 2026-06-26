@@ -5,13 +5,21 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import MathText from './components/MathText';
 
 const TABS = [
-  { id: 'videos', label: 'Videos', icon: '▶' },
-  { id: 'pdfs', label: 'PDFs', icon: '📄' },
-  { id: 'quizlet', label: 'Quizlet', icon: '📚' },
-  { id: 'problems', label: 'Problems', icon: '✏️' },
-  { id: 'reddit', label: 'Reddit', icon: '💬' },
-  { id: 'textbooks', label: 'Textbooks', icon: '📖' },
-  { id: 'tutor', label: 'AI Tutor', icon: '✦' },
+  { id: 'videos', label: 'Videos', iconColor: '#1D9E75', icon: '▶' },
+  { id: 'pdfs', label: 'PDFs', iconColor: '#e05c2a', icon: '📄' },
+  { id: 'quizlet', label: 'Quizlet', iconColor: '#7c63e8', icon: '📚' },
+  { id: 'problems', label: 'Problems', iconColor: '#d4a017', icon: '✏️' },
+  { id: 'reddit', label: 'Reddit', iconColor: '#e05c2a', icon: '💬' },
+  { id: 'textbooks', label: 'Textbooks', iconColor: '#2a7cd4', icon: '📖' },
+];
+
+const CARD_COLORS = [
+  { bg: 'linear-gradient(135deg,#e8f5ee,#c5e8d4)', circle: '#1D9E75' },
+  { bg: 'linear-gradient(135deg,#ede8ff,#c4b5fd)', circle: '#7c3aed' },
+  { bg: 'linear-gradient(135deg,#fff3e8,#fdcba8)', circle: '#ea6c00' },
+  { bg: 'linear-gradient(135deg,#e8f0ff,#b5d0f5)', circle: '#2a7cd4' },
+  { bg: 'linear-gradient(135deg,#fff0f5,#fdb8cc)', circle: '#d4376e' },
+  { bg: 'linear-gradient(135deg,#f0fff0,#b5f0c4)', circle: '#15803d' },
 ];
 
 type Message = { role: 'user' | 'assistant'; content: string };
@@ -25,12 +33,12 @@ export default function Home() {
   const [loadingStep, setLoadingStep] = useState('');
   const [currentTopic, setCurrentTopic] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [pages, setPages] = useState<Record<string, number>>({
     videos: 1, pdfs: 1, quizlet: 1, problems: 1, reddit: 1, textbooks: 1,
   });
   const [pageResults, setPageResults] = useState<Record<string, any[]>>({});
   const [pageLoading, setPageLoading] = useState(false);
-  const ITEMS_PER_PAGE = 5;
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
@@ -62,6 +70,7 @@ export default function Home() {
     setTutorInitialized(false);
     setPages({ videos: 1, pdfs: 1, quizlet: 1, problems: 1, reddit: 1, textbooks: 1 });
     setPageResults({});
+    setRecentSearches(prev => [query, ...prev.filter(s => s !== query)].slice(0, 3));
     setLoadingStep('Asking AI to understand your class...');
     await new Promise(r => setTimeout(r, 800));
     setLoadingStep('Searching YouTube, PDFs, Quizlet and more...');
@@ -82,7 +91,6 @@ export default function Home() {
     if (pageLoading) return;
     setPageLoading(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
     const extraMap: Record<string, string> = {
       pdfs: 'free PDF study guide filetype:pdf',
       quizlet: 'quizlet flashcards',
@@ -90,7 +98,6 @@ export default function Home() {
       reddit: 'site:reddit.com',
       textbooks: 'free textbook solutions',
     };
-
     if (tabId === 'videos') {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -109,7 +116,6 @@ export default function Home() {
       const data = await res.json();
       setPageResults(prev => ({ ...prev, [`${tabId}_${nextPage}`]: data[tabId] || [] }));
     }
-
     setPages(prev => ({ ...prev, [tabId]: nextPage }));
     setPageLoading(false);
   }
@@ -169,62 +175,64 @@ export default function Home() {
   const getResultCount = (tabId: string) => {
     if (!results) return 0;
     if (tabId === 'videos') return (results.videos || []).length;
-    if (tabId === 'tutor') return null;
     return (results[tabId] || []).length;
   };
 
   const getCurrentItems = (tabId: string) => {
     const page = pages[tabId] || 1;
-    if (page > 1 && pageResults[`${tabId}_${page}`]) {
-      return pageResults[`${tabId}_${page}`];
-    }
+    if (page > 1 && pageResults[`${tabId}_${page}`]) return pageResults[`${tabId}_${page}`];
     if (!results) return [];
     if (tabId === 'videos') return results.videos || [];
     return results[tabId] || [];
   };
 
+  const getSubjectTags = (topic: string) => {
+    const lower = topic.toLowerCase();
+    const tags: { label: string; bg: string; color: string; border: string }[] = [];
+    if (lower.includes('calc') || lower.includes('math') || lower.includes('algebra') || lower.includes('trig')) {
+      tags.push({ label: 'Mathematics', bg: '#e8f5ee', color: '#085041', border: '#c5e8d4' });
+    }
+    if (lower.includes('calc 2') || lower.includes('calculus 2')) {
+      tags.push({ label: 'Calculus II', bg: '#ede8ff', color: '#5b21b6', border: '#c4b5fd' });
+    } else if (lower.includes('calc 1') || lower.includes('calculus 1')) {
+      tags.push({ label: 'Calculus I', bg: '#ede8ff', color: '#5b21b6', border: '#c4b5fd' });
+    }
+    if (lower.includes('integrat') || lower.includes('derivative') || lower.includes('limit')) {
+      tags.push({ label: 'Integration', bg: '#fff3e8', color: '#9a3412', border: '#fdcba8' });
+    }
+    if (lower.includes('chem')) {
+      tags.push({ label: 'Chemistry', bg: '#e8f0ff', color: '#1e3a8a', border: '#b5d0f5' });
+    }
+    if (lower.includes('phys')) {
+      tags.push({ label: 'Physics', bg: '#fff0f5', color: '#9d174d', border: '#fdb8cc' });
+    }
+    if (lower.includes('bio')) {
+      tags.push({ label: 'Biology', bg: '#f0fff0', color: '#14532d', border: '#b5f0c4' });
+    }
+    if (tags.length === 0) tags.push({ label: topic, bg: '#e8f5ee', color: '#085041', border: '#c5e8d4' });
+    return tags.slice(0, 3);
+  };
+
   const renderPagination = (tabId: string) => {
     const page = pages[tabId] || 1;
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '20px', paddingBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px', paddingBottom: '24px' }}>
         <button
           onClick={() => loadMoreResults(tabId, page - 1)}
           disabled={page <= 1 || pageLoading}
-          style={{
-            padding: '8px 18px', borderRadius: '8px', border: '0.5px solid #9FE1CB',
-            background: page <= 1 ? '#F4FAF7' : 'white', color: page <= 1 ? '#9FE1CB' : '#0F6E56',
-            cursor: page <= 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500,
-          }}
-        >
-          ← Prev
-        </button>
+          style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #e0ede6', background: 'white', color: page <= 1 ? '#ccc' : '#4a7c5f', cursor: page <= 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500 }}
+        >← Prev</button>
         {[1, 2, 3, 4, 5].map(p => (
-          <button
-            key={p}
-            onClick={() => p !== page && loadMoreResults(tabId, p)}
-            style={{
-              width: '34px', height: '34px', borderRadius: '8px', border: 'none',
-              background: p === page ? '#1D9E75' : 'white',
-              color: p === page ? 'white' : '#0F6E56',
-              cursor: p === page ? 'default' : 'pointer',
-              fontSize: '13px', fontWeight: p === page ? 600 : 400,
-              border: p === page ? 'none' : '0.5px solid #D3F0E6',
-            } as any}
-          >
+          <button key={p} onClick={() => p !== page && loadMoreResults(tabId, p)}
+            style={{ width: '36px', height: '36px', borderRadius: '8px', border: p === page ? 'none' : '1.5px solid #e0ede6', background: p === page ? '#1D9E75' : 'white', color: p === page ? 'white' : '#4a7c5f', cursor: p === page ? 'default' : 'pointer', fontSize: '13px', fontWeight: p === page ? 700 : 400 }}>
             {p}
           </button>
         ))}
         <button
           onClick={() => loadMoreResults(tabId, page + 1)}
           disabled={page >= 5 || pageLoading}
-          style={{
-            padding: '8px 18px', borderRadius: '8px', border: '0.5px solid #9FE1CB',
-            background: page >= 5 ? '#F4FAF7' : 'white', color: page >= 5 ? '#9FE1CB' : '#0F6E56',
-            cursor: page >= 5 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500,
-          }}
-        >
-          Next →
-        </button>
+          style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #c5e8d4', background: 'white', color: page >= 5 ? '#ccc' : '#1D9E75', cursor: page >= 5 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+        >Next →</button>
       </div>
     );
   };
@@ -234,63 +242,48 @@ export default function Home() {
 
     if (activeTab === 'tutor') {
       return (
-        <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>✦</div>
+        <div style={{ background: 'white', border: '1.5px solid #e8f2ec', borderRadius: '14px', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg,#1D9E75,#085041)', padding: '18px 22px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>✦</div>
             <div>
-              <p style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'white' }}>AI Tutor</p>
+              <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'white' }}>AI Tutor</p>
               <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>Topic: {currentTopic}</p>
             </div>
           </div>
-          <div style={{ height: '520px', overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ height: '520px', overflowY: 'auto', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {tutorMessages.length === 0 && !tutorLoading && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.6 }}>
-                <span style={{ fontSize: '32px' }}>📚</span>
-                <p style={{ fontSize: '15px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>Search for a topic to start your tutoring session</p>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', opacity: 0.5 }}>
+                <span style={{ fontSize: '36px' }}>📚</span>
+                <p style={{ fontSize: '15px', color: '#4a7c5f', textAlign: 'center', margin: 0 }}>Search for a topic to start your tutoring session</p>
               </div>
             )}
             {tutorMessages.map((msg, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <div style={{
-                  maxWidth: '85%', padding: '10px 14px',
-                  borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                  background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
-                  border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
-                }}>
+                <div style={{ maxWidth: '85%', padding: '12px 16px', borderRadius: msg.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px', background: msg.role === 'user' ? '#1D9E75' : '#f7faf8', border: msg.role === 'assistant' ? '1.5px solid #e8f2ec' : 'none' }}>
                   {msg.role === 'assistant'
-                    ? <MathText content={msg.content} color="#085041" />
-                    : <span style={{ color: 'white', fontSize: '15px', lineHeight: 1.6 }}>{msg.content}</span>
-                  }
+                    ? <MathText content={msg.content} color="#0a1a12" />
+                    : <span style={{ color: 'white', fontSize: '15px', lineHeight: 1.6 }}>{msg.content}</span>}
                 </div>
               </div>
             ))}
             {tutorLoading && (
               <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <div style={{ padding: '10px 14px', borderRadius: '12px 12px 12px 2px', background: '#F4FAF7', border: '0.5px solid #D3F0E6' }}>
+                <div style={{ padding: '12px 16px', borderRadius: '14px 14px 14px 2px', background: '#f7faf8', border: '1.5px solid #e8f2ec' }}>
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    {[0, 1, 2].map(i => (
-                      <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-                    ))}
+                    {[0, 1, 2].map(i => <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />)}
                   </div>
                 </div>
               </div>
             )}
             <div ref={tutorBottomRef} />
           </div>
-          <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '12px', display: 'flex', gap: '8px' }}>
-            <input
-              value={tutorInput}
-              onChange={e => setTutorInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendTutorMessage()}
+          <div style={{ borderTop: '1.5px solid #e8f2ec', padding: '14px', display: 'flex', gap: '10px' }}>
+            <input value={tutorInput} onChange={e => setTutorInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendTutorMessage()}
               placeholder={currentTopic ? 'Ask your tutor anything...' : 'Search for a topic first'}
               disabled={!currentTopic}
-              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '0.5px solid #D3F0E6', background: currentTopic ? 'white' : '#F9FFFE', color: '#085041', fontSize: '15px', outline: 'none' }}
-            />
-            <button
-              onClick={sendTutorMessage}
-              disabled={!currentTopic || tutorLoading}
-              style={{ background: currentTopic ? '#1D9E75' : '#D3F0E6', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', fontSize: '15px', cursor: currentTopic ? 'pointer' : 'not-allowed', fontWeight: 500 }}
-            >
+              style={{ flex: 1, padding: '11px 16px', borderRadius: '10px', border: '1.5px solid #d4ede2', background: currentTopic ? 'white' : '#f7faf8', color: '#0a1a12', fontSize: '14px', outline: 'none' }} />
+            <button onClick={sendTutorMessage} disabled={!currentTopic || tutorLoading}
+              style={{ background: currentTopic ? '#1D9E75' : '#d4ede2', color: 'white', border: 'none', padding: '11px 20px', borderRadius: '10px', fontSize: '14px', cursor: currentTopic ? 'pointer' : 'not-allowed', fontWeight: 700 }}>
               Send
             </button>
           </div>
@@ -303,7 +296,7 @@ export default function Home() {
     if (pageLoading) {
       return (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ width: '32px', height: '32px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 1s linear infinite' }} />
+          <div style={{ width: '32px', height: '32px', border: '3px solid #e8f2ec', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 14px', animation: 'spin 1s linear infinite' }} />
           <p style={{ fontSize: '14px', color: '#1D9E75' }}>Loading more results...</p>
         </div>
       );
@@ -312,21 +305,33 @@ export default function Home() {
     if (activeTab === 'videos') {
       return (
         <>
-          {items.map((v: any, i: number) => (
-            <a key={i} href={ytBase + v.id.videoId} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', display: 'flex', gap: '14px', alignItems: 'flex-start', marginBottom: '8px', cursor: 'pointer' }}>
-                <img src={v.snippet.thumbnails.medium.url} style={{ width: '120px', height: '72px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: '0 0 4px' }}>{v.snippet.title}</p>
-                  <p style={{ fontSize: '13px', color: '#1D9E75', margin: '0 0 6px', fontWeight: 500 }}>{v.snippet.channelTitle}</p>
-                  <p style={{ fontSize: '13px', color: '#0F6E56', margin: '0 0 8px', lineHeight: 1.5, opacity: 0.85 }}>
-                    {v.snippet.description ? v.snippet.description.slice(0, 120) + (v.snippet.description.length > 120 ? '...' : '') : 'Click to watch this video on YouTube.'}
-                  </p>
-                  <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px' }}>YouTube</span>
+          {items.map((v: any, i: number) => {
+            const color = CARD_COLORS[i % CARD_COLORS.length];
+            return (
+              <a key={i} href={ytBase + v.id.videoId} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <div style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '14px', padding: '16px 18px', display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '10px', cursor: 'pointer' }}>
+                  <div style={{ width: '120px', height: '72px', borderRadius: '10px', background: color.bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {v.snippet.thumbnails?.medium?.url
+                      ? <img src={v.snippet.thumbnails.medium.url} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
+                      : <div style={{ width: '36px', height: '36px', background: color.circle, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ color: 'white', fontSize: '14px', marginLeft: '2px' }}>▶</span>
+                        </div>
+                    }
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '15px', fontWeight: 800, color: '#0a1a12', margin: '0 0 4px', letterSpacing: '-0.2px', lineHeight: 1.3 }}>{v.snippet.title}</p>
+                    <p style={{ fontSize: '12px', color: '#1D9E75', margin: '0 0 6px', fontWeight: 700 }}>{v.snippet.channelTitle}</p>
+                    <p style={{ fontSize: '13px', color: '#666', margin: '0 0 10px', lineHeight: 1.5 }}>
+                      {v.snippet.description ? v.snippet.description.slice(0, 120) + (v.snippet.description.length > 120 ? '...' : '') : 'Click to watch on YouTube.'}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', background: '#e8f5ee', color: '#085041', padding: '3px 10px', borderRadius: '20px', fontWeight: 600, border: '1px solid #c5e8d4' }}>YouTube</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </a>
-          ))}
+              </a>
+            );
+          })}
           {renderPagination('videos')}
         </>
       );
@@ -336,12 +341,12 @@ export default function Home() {
       <>
         {items.map((item: any, i: number) => (
           <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-            <div style={{ background: 'white', border: '0.5px solid #D3F0E6', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                <p style={{ fontSize: '15px', fontWeight: 500, color: '#085041', margin: 0 }}>{item.title}</p>
-                <span style={{ fontSize: '11px', background: '#E1F5EE', color: '#0F6E56', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px', flexShrink: 0 }}>{item.source}</span>
+            <div style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '14px', padding: '16px 18px', marginBottom: '10px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <p style={{ fontSize: '15px', fontWeight: 800, color: '#0a1a12', margin: 0, letterSpacing: '-0.2px' }}>{item.title}</p>
+                <span style={{ fontSize: '11px', background: '#e8f5ee', color: '#085041', padding: '3px 10px', borderRadius: '20px', fontWeight: 600, border: '1px solid #c5e8d4', marginLeft: '12px', flexShrink: 0 }}>{item.source}</span>
               </div>
-              <p style={{ fontSize: '13px', color: '#0F6E56', margin: 0, lineHeight: 1.5 }}>{item.snippet}</p>
+              <p style={{ fontSize: '13px', color: '#555', margin: 0, lineHeight: 1.6 }}>{item.snippet}</p>
             </div>
           </a>
         ))}
@@ -350,142 +355,165 @@ export default function Home() {
     );
   };
 
-  return (
-    <main style={{ minHeight: '100vh', background: '#f4faf7', fontFamily: 'var(--font-sans)' }}>
+  const tags = currentTopic ? getSubjectTags(currentTopic) : [];
 
+  return (
+    <main style={{ minHeight: '100vh', background: '#f5f8f6', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
+        @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-6px); } }
       `}</style>
 
       {/* Navbar */}
-      <nav style={{ background: 'rgba(200,234,217,0.9)', backdropFilter: 'blur(10px)', borderBottom: '0.5px solid #9FE1CB', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '14px', position: 'sticky', top: 0, zIndex: 10 }}>
+      <nav style={{ background: 'white', borderBottom: '2px solid #f0f7f3', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '14px', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#9FE1CB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '14px' }}>✦</span>
-          </div>
-          <span style={{ fontSize: '15px', fontWeight: 500, color: '#085041' }}>StudyAI</span>
+          <div style={{ width: '32px', height: '32px', borderRadius: '9px', background: '#1D9E75', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: 'white', fontWeight: 700 }}>✦</div>
+          <span style={{ fontSize: '16px', fontWeight: 800, color: '#0a1a12', letterSpacing: '-0.4px' }}>Study<span style={{ color: '#1D9E75' }}>AI</span></span>
         </div>
-        <div style={{ flex: 1, display: 'flex', gap: '8px', background: 'white', padding: '6px 8px', borderRadius: '12px', border: '1px solid #9FE1CB' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '16px' }}>🔍</span>
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Try 'Organic Chemistry Chapter 5'..."
-              style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '8px', border: 'none', background: 'transparent', color: '#085041', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
-            />
-          </div>
-          <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            {loading ? 'Searching...' : 'Search →'}
-          </button>
+        <div style={{ flex: 1, background: '#f7faf8', border: '1.5px solid #c5e8d4', borderRadius: '12px', display: 'flex', alignItems: 'center', padding: '8px 14px', gap: '8px' }}>
+          <span style={{ fontSize: '15px', color: '#1D9E75' }}>🔍</span>
+          <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()}
+            placeholder="Search any class, topic, or concept..."
+            style={{ flex: 1, border: 'none', background: 'transparent', color: '#0a1a12', fontSize: '14px', outline: 'none' }} />
+          <span style={{ fontSize: '11px', color: '#bbb', background: '#eef5f1', padding: '2px 8px', borderRadius: '5px', border: '1px solid #d4ede2' }}>⌘K</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          {session ? (
-            <>
-              <span style={{ fontSize: '13px', color: '#0F6E56' }}>{session.user?.name}</span>
-              <button onClick={() => signOut()} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign out</button>
-              <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => signIn('google')} style={{ fontSize: '13px', color: '#0F6E56', background: 'transparent', border: '1.5px solid #1D9E75', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>Sign in</button>
-              <button style={{ fontSize: '13px', background: '#1D9E75', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>✦ Go Premium</button>
-            </>
-          )}
+        <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.2px' }}>
+          {loading ? 'Searching...' : 'Search →'}
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fff8f2', border: '1.5px solid #fddcb8', borderRadius: '10px', padding: '6px 12px', flexShrink: 0 }}>
+          <span style={{ fontSize: '14px' }}>🔥</span>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#ea6c00' }}>7</span>
+          <span style={{ fontSize: '11px', color: '#c4835a', fontWeight: 500 }}>day streak</span>
         </div>
+        {session ? (
+          <>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#085041)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'white', fontWeight: 800, flexShrink: 0 }}>
+              {session.user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+            </div>
+            <button onClick={() => signOut()} style={{ fontSize: '12px', color: '#1D9E75', background: 'transparent', border: '1.5px solid #1D9E75', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Sign out</button>
+            <button style={{ fontSize: '12px', background: '#0a1a12', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}>✦ Premium</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => signIn('google')} style={{ fontSize: '12px', color: '#1D9E75', background: 'transparent', border: '1.5px solid #1D9E75', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Sign in</button>
+            <button style={{ fontSize: '12px', background: '#0a1a12', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}>✦ Premium</button>
+          </>
+        )}
       </nav>
 
-      {/* Hero — only before first search */}
+      {/* Hero */}
       {!hasSearched && (
-        <div style={{ padding: '80px 24px 64px', textAlign: 'center', position: 'relative', overflow: 'hidden', background: 'linear-gradient(to bottom, #c8ead9 0%, #e8f5f0 40%, #f4faf7 100%)' }}>
-          <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
-          <div style={{ position: 'absolute', top: '60px', left: '18%', width: '50px', height: '50px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
-          <div style={{ position: 'absolute', top: '10px', right: '8%', width: '80px', height: '80px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.3 }} />
-          <div style={{ position: 'absolute', top: '30px', right: '22%', width: '40px', height: '40px', borderRadius: '50%', background: '#5DCAA5', opacity: 0.2 }} />
-          <div style={{ position: 'absolute', bottom: '40px', left: '8%', width: '70px', height: '70px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
+        <div style={{ padding: '90px 24px 72px', textAlign: 'center', position: 'relative', overflow: 'hidden', background: 'linear-gradient(to bottom,#c8ead9 0%,#e8f5f0 40%,#f5f8f6 100%)' }}>
+          <div style={{ position: 'absolute', top: '20px', left: '5%', width: '100px', height: '100px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
+          <div style={{ position: 'absolute', top: '60px', left: '18%', width: '50px', height: '50px', borderRadius: '50%', background: '#7c63e8', opacity: 0.1 }} />
+          <div style={{ position: 'absolute', top: '10px', right: '8%', width: '80px', height: '80px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.25 }} />
+          <div style={{ position: 'absolute', top: '30px', right: '22%', width: '40px', height: '40px', borderRadius: '50%', background: '#ea6c00', opacity: 0.08 }} />
+          <div style={{ position: 'absolute', bottom: '40px', left: '8%', width: '70px', height: '70px', borderRadius: '50%', background: '#2a7cd4', opacity: 0.08 }} />
           <div style={{ position: 'absolute', bottom: '50px', right: '10%', width: '60px', height: '60px', borderRadius: '50%', background: '#9FE1CB', opacity: 0.2 }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <p style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 500, letterSpacing: '0.08em', margin: '0 0 14px', textTransform: 'uppercase' }}>✦ Powered by AI</p>
-            <h1 style={{ fontSize: '42px', fontWeight: 500, color: '#085041', margin: '0 0 12px', lineHeight: 1.2 }}>The smartest way to<br />find study materials</h1>
-            <p style={{ fontSize: '15px', color: '#0F6E56', margin: 0, opacity: 0.8 }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#e8f5ee', border: '1.5px solid #c5e8d4', borderRadius: '20px', padding: '5px 14px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '12px', color: '#1D9E75', fontWeight: 700, letterSpacing: '0.06em' }}>✦ POWERED BY AI</span>
+            </div>
+            <h1 style={{ fontSize: '48px', fontWeight: 900, color: '#0a1a12', margin: '0 0 14px', lineHeight: 1.1, letterSpacing: '-1px' }}>The smartest way to<br /><span style={{ color: '#1D9E75' }}>find study materials</span></h1>
+            <p style={{ fontSize: '16px', color: '#4a7c5f', margin: '0 0 40px', fontWeight: 500 }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              {['Organic Chemistry Ch.5', 'Calculus 2 Integration', 'Micro Economics', 'Physics Kinematics'].map(s => (
+                <button key={s} onClick={() => { setQuery(s); }} style={{ fontSize: '13px', background: 'white', color: '#0a1a12', border: '1.5px solid #d4ede2', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontWeight: 500 }}>{s}</button>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
       {/* Main layout */}
       {hasSearched && (
-        <div style={{ display: 'flex', minHeight: 'calc(100vh - 60px)' }}>
+        <div style={{ display: 'flex', minHeight: 'calc(100vh - 62px)' }}>
 
-          {/* Sidebar — flush to left edge */}
-          <div style={{ width: '200px', flexShrink: 0, background: 'white', borderRight: '0.5px solid #D3F0E6' }}>
-            <div style={{ padding: '16px 10px', position: 'sticky', top: '60px' }}>
-              {TABS.map((tab, idx) => {
+          {/* Sidebar */}
+          <div style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1.5px solid #e8f2ec' }}>
+            <div style={{ padding: '16px 10px', position: 'sticky', top: '62px', overflowY: 'auto', maxHeight: 'calc(100vh - 62px)' }}>
+
+              <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>STUDY TOOLS</div>
+              {TABS.map(tab => {
                 const count = getResultCount(tab.id);
+                const isActive = activeTab === tab.id;
                 return (
-                  <div key={tab.id}>
-                    {tab.id === 'tutor' && (
-                      <div style={{ borderTop: '0.5px solid #D3F0E6', margin: '8px 4px' }} />
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', border: isActive ? 'none' : 'none', background: isActive ? '#f0faf5' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: isActive ? 700 : 400, color: isActive ? '#085041' : '#4a7c5f', textAlign: 'left', marginBottom: '2px', borderLeft: isActive ? '3px solid #1D9E75' : '3px solid transparent' }}>
+                    <span style={{ fontSize: '14px', color: tab.iconColor }}>{tab.icon}</span>
+                    <span style={{ flex: 1 }}>{tab.label}</span>
+                    {count > 0 && (
+                      <span style={{ fontSize: '11px', background: isActive ? '#1D9E75' : '#e8f5ee', color: isActive ? 'white' : '#085041', padding: '2px 8px', borderRadius: '20px', fontWeight: 700 }}>{count}</span>
                     )}
-                    <button
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        if (tab.id === 'tutor') initializeTutor();
-                      }}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '10px 14px',
-                        borderRadius: '8px',
-                        border: 'none',
-                        background: activeTab === tab.id ? '#1D9E75' : 'transparent',
-                        color: activeTab === tab.id ? 'white' : '#0F6E56',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        fontWeight: activeTab === tab.id ? 500 : 400,
-                        textAlign: 'left',
-                        marginBottom: '2px',
-                      }}
-                    >
-                      <span style={{ fontSize: '15px' }}>{tab.icon}</span>
-                      <span style={{ flex: 1 }}>{tab.label}</span>
-                      {count !== null && count > 0 && (
-                        <span style={{
-                          fontSize: '11px',
-                          background: activeTab === tab.id ? 'rgba(255,255,255,0.25)' : '#E1F5EE',
-                          color: activeTab === tab.id ? 'white' : '#0F6E56',
-                          padding: '1px 7px',
-                          borderRadius: '10px',
-                          fontWeight: 500,
-                        }}>
-                          {count}
-                        </span>
-                      )}
-                    </button>
-                  </div>
+                  </button>
                 );
               })}
+
+              <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
+              <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>AI FEATURES</div>
+
+              <button onClick={() => { setActiveTab('tutor'); initializeTutor(); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: activeTab === 'tutor' ? '#fdf3ff' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: activeTab === 'tutor' ? 700 : 500, color: activeTab === 'tutor' ? '#7c3aed' : '#7c3aed', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: activeTab === 'tutor' ? '3px solid #a855f7' : '3px solid transparent' }}>
+                <span style={{ fontSize: '14px' }}>✦</span>
+                <span style={{ flex: 1 }}>AI Tutor</span>
+              </button>
+
+              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 400, color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' }}>
+                <span style={{ fontSize: '14px', color: '#1D9E75' }}>📝</span>
+                <span style={{ flex: 1 }}>Study Guide</span>
+                <span style={{ background: '#fb923c', color: 'white', borderRadius: '4px', padding: '1px 7px', fontSize: '9px', fontWeight: 700 }}>PRO</span>
+              </button>
+
+              <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
+              <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>PLANNING</div>
+
+              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 400, color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' }}>
+                <span style={{ fontSize: '14px', color: '#2a7cd4' }}>🎓</span>
+                <span style={{ flex: 1 }}>Degree Planner</span>
+                <span style={{ background: '#1D9E75', color: 'white', borderRadius: '4px', padding: '1px 7px', fontSize: '9px', fontWeight: 700 }}>NEW</span>
+              </button>
+
+              {recentSearches.length > 0 && (
+                <>
+                  <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
+                  <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>RECENTLY VIEWED</div>
+                  {recentSearches.map((s, i) => (
+                    <button key={i} onClick={() => { setQuery(s); handleSearch(); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 12px', borderRadius: '7px', background: 'transparent', cursor: 'pointer', fontSize: '12px', color: '#888', textAlign: 'left', border: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ fontSize: '12px', color: '#ccc' }}>🕐</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s}</span>
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           </div>
 
-          {/* Results area */}
-          <div style={{ flex: 1, padding: '24px 28px', minWidth: 0 }}>
+          {/* Results */}
+          <div style={{ flex: 1, padding: '20px 28px', minWidth: 0 }}>
             {loading && (
               <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                <div style={{ width: '36px', height: '36px', border: '3px solid #E1F5EE', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: '15px', color: '#1D9E75', fontWeight: 500 }}>{loadingStep}</p>
+                <div style={{ width: '38px', height: '38px', border: '3px solid #e8f2ec', borderTop: '3px solid #1D9E75', borderRadius: '50%', margin: '0 auto 18px', animation: 'spin 1s linear infinite' }} />
+                <p style={{ fontSize: '15px', color: '#1D9E75', fontWeight: 600 }}>{loadingStep}</p>
               </div>
             )}
 
             {results && !loading && (
               <>
+                {tags.length > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                    {tags.map((tag, i) => (
+                      <span key={i} style={{ fontSize: '12px', background: tag.bg, color: tag.color, padding: '4px 14px', borderRadius: '20px', fontWeight: 600, border: `1.5px solid ${tag.border}` }}>{tag.label}</span>
+                    ))}
+                  </div>
+                )}
                 {results.summary && (
-                  <div style={{ background: 'white', border: '0.5px solid #9FE1CB', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', display: 'flex', gap: '12px' }}>
-                    <div style={{ width: '8px', height: '8px', background: '#1D9E75', borderRadius: '50%', marginTop: '6px', flexShrink: 0 }} />
-                    <p style={{ fontSize: '15px', color: '#085041', lineHeight: 1.6, margin: 0 }}>{results.summary}</p>
+                  <div style={{ background: 'white', border: '1.5px solid #c5e8d4', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', gap: '14px' }}>
+                    <div style={{ width: '4px', borderRadius: '2px', background: '#1D9E75', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#1D9E75', letterSpacing: '0.08em', marginBottom: '6px' }}>✦ AI SUMMARY</div>
+                      <p style={{ fontSize: '14px', color: '#222', lineHeight: 1.7, margin: 0 }}>{results.summary}</p>
+                    </div>
                   </div>
                 )}
                 <div>{renderResults()}</div>
@@ -495,79 +523,63 @@ export default function Home() {
         </div>
       )}
 
-      {/* Floating Chat Bubble */}
+      {/* Floating Chat */}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
         {chatOpen && (
-          <div style={{ position: 'absolute', bottom: '64px', right: 0, width: '320px', background: 'white', borderRadius: '16px', boxShadow: '0 8px 40px rgba(8,80,65,0.18)', border: '0.5px solid #9FE1CB', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ background: 'linear-gradient(135deg, #1D9E75, #085041)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>✦</div>
+          <div style={{ position: 'absolute', bottom: '68px', right: 0, width: '340px', background: 'white', borderRadius: '18px', boxShadow: '0 12px 48px rgba(10,26,18,0.15)', border: '1.5px solid #d4ede2', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ background: 'linear-gradient(135deg,#1D9E75,#085041)', padding: '16px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>✦</div>
                 <div>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'white' }}>Study Assistant</p>
-                  {currentTopic && <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.75)' }}>on: {currentTopic}</p>}
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'white' }}>Study Assistant</p>
+                  {currentTopic && <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>on: {currentTopic}</p>}
                 </div>
               </div>
-              <button onClick={() => setChatOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button onClick={() => setChatOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
-            <div style={{ height: '280px', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ height: '300px', overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {chatMessages.length === 0 && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: 0.6 }}>
-                  <span style={{ fontSize: '28px' }}>💬</span>
-                  <p style={{ fontSize: '13px', color: '#0F6E56', textAlign: 'center', margin: 0 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', opacity: 0.5 }}>
+                  <span style={{ fontSize: '30px' }}>💬</span>
+                  <p style={{ fontSize: '13px', color: '#4a7c5f', textAlign: 'center', margin: 0 }}>
                     {currentTopic ? `Ask me anything about "${currentTopic}"` : 'Ask me anything about your studies'}
                   </p>
                 </div>
               )}
               {chatMessages.map((msg, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                  <div style={{
-                    maxWidth: '85%', padding: '8px 12px',
-                    borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                    background: msg.role === 'user' ? '#1D9E75' : '#F4FAF7',
-                    color: msg.role === 'user' ? 'white' : '#085041',
-                    fontSize: '13px', lineHeight: 1.5,
-                    border: msg.role === 'assistant' ? '0.5px solid #D3F0E6' : 'none',
-                    whiteSpace: 'pre-wrap',
-                  }}>
+                  <div style={{ maxWidth: '85%', padding: '9px 13px', borderRadius: msg.role === 'user' ? '13px 13px 2px 13px' : '13px 13px 13px 2px', background: msg.role === 'user' ? '#1D9E75' : '#f7faf8', color: msg.role === 'user' ? 'white' : '#0a1a12', fontSize: '13px', lineHeight: 1.5, border: msg.role === 'assistant' ? '1.5px solid #e8f2ec' : 'none', whiteSpace: 'pre-wrap' }}>
                     {msg.content}
                   </div>
                 </div>
               ))}
               {chatLoading && (
                 <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                  <div style={{ padding: '8px 12px', borderRadius: '12px 12px 12px 2px', background: '#F4FAF7', border: '0.5px solid #D3F0E6' }}>
+                  <div style={{ padding: '9px 13px', borderRadius: '13px 13px 13px 2px', background: '#f7faf8', border: '1.5px solid #e8f2ec' }}>
                     <div style={{ display: 'flex', gap: '4px' }}>
-                      {[0, 1, 2].map(i => (
-                        <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-                      ))}
+                      {[0, 1, 2].map(i => <div key={i} style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#1D9E75', animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite` }} />)}
                     </div>
                   </div>
                 </div>
               )}
               <div ref={chatBottomRef} />
             </div>
-            <div style={{ borderTop: '0.5px solid #D3F0E6', padding: '10px', display: 'flex', gap: '6px' }}>
-              <input
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
+            <div style={{ borderTop: '1.5px solid #e8f2ec', padding: '12px', display: 'flex', gap: '8px' }}>
+              <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendChatMessage()}
                 placeholder="Ask anything..."
-                style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '0.5px solid #D3F0E6', color: '#085041', fontSize: '13px', outline: 'none' }}
-              />
-              <button onClick={sendChatMessage} disabled={chatLoading} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}>→</button>
+                style={{ flex: 1, padding: '9px 13px', borderRadius: '9px', border: '1.5px solid #d4ede2', color: '#0a1a12', fontSize: '13px', outline: 'none' }} />
+              <button onClick={sendChatMessage} disabled={chatLoading}
+                style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '9px', fontSize: '14px', cursor: 'pointer', fontWeight: 700 }}>→</button>
             </div>
           </div>
         )}
-        <button
-          onClick={() => setChatOpen(o => !o)}
-          style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #1D9E75, #085041)', border: 'none', cursor: 'pointer', boxShadow: '0 4px 20px rgba(29,158,117,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', transition: 'transform 0.2s' }}
+        <button onClick={() => setChatOpen(o => !o)}
+          style={{ width: '54px', height: '54px', borderRadius: '50%', background: 'linear-gradient(135deg,#1D9E75,#085041)', border: 'none', cursor: 'pointer', boxShadow: '0 6px 24px rgba(29,158,117,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', transition: 'transform 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-        >
+          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
           {chatOpen ? '×' : '✦'}
         </button>
       </div>
-
     </main>
   );
 }
