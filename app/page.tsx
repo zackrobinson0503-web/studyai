@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import MathText from './components/MathText';
-import { saveItem, unsaveItem, isItemSaved, getSavedItems, logSearch, getRecentSearches } from '../lib/supabase';
+import { saveItem, unsaveItem, isItemSaved, getSavedItems, logSearch, getRecentSearches } from '../../lib/supabase';
 
 const TABS = [
   { id: 'videos', label: 'Videos', iconColor: '#1D9E75', icon: '▶' },
