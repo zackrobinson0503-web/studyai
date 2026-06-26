@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import MathText from './components/MathText';
+import { saveItem, unsaveItem, isItemSaved, getSavedItems, logSearch, getRecentSearches } from '../lib/supabase';
 
 const TABS = [
   { id: 'videos', label: 'Videos', iconColor: '#1D9E75', icon: '▶' },
@@ -34,6 +35,10 @@ export default function Home() {
   const [currentTopic, setCurrentTopic] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set());
+  const [savingUrl, setSavingUrl] = useState<string | null>(null);
+  const [showSaved, setShowSaved] = useState(false);
+  const [savedItems, setSavedItems] = useState<any[]>([]);
   const [pages, setPages] = useState<Record<string, number>>({
     videos: 1, pdfs: 1, quizlet: 1, problems: 1, reddit: 1, textbooks: 1,
   });
@@ -53,6 +58,16 @@ export default function Home() {
   const tutorBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (session?.user?.email) {
+      getRecentSearches(session.user.email).then(setRecentSearches);
+      getSavedItems(session.user.email).then(items => {
+        setSavedItems(items);
+        setSavedUrls(new Set(items.map((i: any) => i.url)));
+      });
+    }
+  }, [session]);
+
+  useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
@@ -60,17 +75,19 @@ export default function Home() {
     tutorBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [tutorMessages]);
 
-  async function handleSearch() {
-    if (!query.trim()) return;
+  async function handleSearch(searchQuery?: string) {
+    const q = searchQuery || query;
+    if (!q.trim()) return;
+    setQuery(q);
     setLoading(true);
     setResults(null);
     setHasSearched(true);
+    setShowSaved(false);
     setActiveTab('videos');
     setTutorMessages([]);
     setTutorInitialized(false);
     setPages({ videos: 1, pdfs: 1, quizlet: 1, problems: 1, reddit: 1, textbooks: 1 });
     setPageResults({});
-    setRecentSearches(prev => [query, ...prev.filter(s => s !== query)].slice(0, 3));
     setLoadingStep('Asking AI to understand your class...');
     await new Promise(r => setTimeout(r, 800));
     setLoadingStep('Searching YouTube, PDFs, Quizlet and more...');
@@ -79,12 +96,34 @@ export default function Home() {
     const res = await fetch('/api/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ className: query }),
+      body: JSON.stringify({ className: q }),
     });
     const data = await res.json();
     setResults(data);
-    setCurrentTopic(query);
+    setCurrentTopic(q);
     setLoading(false);
+    if (session?.user?.email) {
+      const updated = await getRecentSearches(session.user.email);
+      await logSearch(session.user.email, q);
+      const fresh = await getRecentSearches(session.user.email);
+      setRecentSearches(fresh);
+    }
+  }
+
+  async function handleSave(item: { title: string; url: string; source: string; type: string; thumbnail?: string; description?: string }) {
+    if (!session?.user?.email) { signIn('google'); return; }
+    setSavingUrl(item.url);
+    if (savedUrls.has(item.url)) {
+      await unsaveItem(session.user.email, item.url);
+      setSavedUrls(prev => { const n = new Set(prev); n.delete(item.url); return n; });
+      setSavedItems(prev => prev.filter(i => i.url !== item.url));
+    } else {
+      await saveItem(session.user.email, { ...item, search_topic: currentTopic });
+      setSavedUrls(prev => new Set(prev).add(item.url));
+      const fresh = await getSavedItems(session.user.email);
+      setSavedItems(fresh);
+    }
+    setSavingUrl(null);
   }
 
   async function loadMoreResults(tabId: string, nextPage: number) {
@@ -92,11 +131,11 @@ export default function Home() {
     setPageLoading(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const extraMap: Record<string, string> = {
-      pdfs: 'free PDF study guide filetype:pdf',
-      quizlet: 'quizlet flashcards',
-      problems: 'practice problems with solutions',
-      reddit: 'site:reddit.com',
-      textbooks: 'free textbook solutions',
+      pdfs: 'free PDF study guide filetype:pdf site:edu OR site:mit.edu OR site:stanford.edu',
+      quizlet: `site:quizlet.com ${currentTopic} flashcards study`,
+      problems: `${currentTopic} practice problems with solutions worksheet`,
+      reddit: `site:reddit.com ${currentTopic} help study tips`,
+      textbooks: `${currentTopic} textbook openstax OR libretexts OR scribd free`,
     };
     if (tabId === 'videos') {
       const res = await fetch('/api/search', {
@@ -107,8 +146,7 @@ export default function Home() {
       const data = await res.json();
       setPageResults(prev => ({ ...prev, [`videos_${nextPage}`]: data.videos || [] }));
     } else {
-      const q = encodeURIComponent(currentTopic + ' ' + extraMap[tabId]);
-      const res = await fetch(`/api/search?serpPage=${nextPage}&q=${q}`, {
+      const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ className: query, page: nextPage, tab: tabId }),
@@ -189,55 +227,100 @@ export default function Home() {
   const getSubjectTags = (topic: string) => {
     const lower = topic.toLowerCase();
     const tags: { label: string; bg: string; color: string; border: string }[] = [];
-    if (lower.includes('calc') || lower.includes('math') || lower.includes('algebra') || lower.includes('trig')) {
+    if (lower.includes('calc') || lower.includes('math') || lower.includes('algebra') || lower.includes('trig'))
       tags.push({ label: 'Mathematics', bg: '#e8f5ee', color: '#085041', border: '#c5e8d4' });
-    }
-    if (lower.includes('calc 2') || lower.includes('calculus 2')) {
+    if (lower.includes('calc 2') || lower.includes('calculus 2'))
       tags.push({ label: 'Calculus II', bg: '#ede8ff', color: '#5b21b6', border: '#c4b5fd' });
-    } else if (lower.includes('calc 1') || lower.includes('calculus 1')) {
+    else if (lower.includes('calc 1') || lower.includes('calculus 1'))
       tags.push({ label: 'Calculus I', bg: '#ede8ff', color: '#5b21b6', border: '#c4b5fd' });
-    }
-    if (lower.includes('integrat') || lower.includes('derivative') || lower.includes('limit')) {
+    if (lower.includes('integrat') || lower.includes('derivative') || lower.includes('limit'))
       tags.push({ label: 'Integration', bg: '#fff3e8', color: '#9a3412', border: '#fdcba8' });
-    }
-    if (lower.includes('chem')) {
+    if (lower.includes('chem'))
       tags.push({ label: 'Chemistry', bg: '#e8f0ff', color: '#1e3a8a', border: '#b5d0f5' });
-    }
-    if (lower.includes('phys')) {
+    if (lower.includes('phys'))
       tags.push({ label: 'Physics', bg: '#fff0f5', color: '#9d174d', border: '#fdb8cc' });
-    }
-    if (lower.includes('bio')) {
+    if (lower.includes('bio'))
       tags.push({ label: 'Biology', bg: '#f0fff0', color: '#14532d', border: '#b5f0c4' });
-    }
+    if (lower.includes('econ'))
+      tags.push({ label: 'Economics', bg: '#fefce8', color: '#713f12', border: '#fde68a' });
     if (tags.length === 0) tags.push({ label: topic, bg: '#e8f5ee', color: '#085041', border: '#c5e8d4' });
     return tags.slice(0, 3);
+  };
+
+  const SaveButton = ({ item }: { item: any }) => {
+    const isSaved = savedUrls.has(item.url);
+    const isSaving = savingUrl === item.url;
+    return (
+      <button
+        onClick={e => { e.preventDefault(); e.stopPropagation(); handleSave(item); }}
+        disabled={isSaving}
+        style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '20px', border: isSaved ? '1.5px solid #1D9E75' : '1.5px solid #e0ede6', background: isSaved ? '#e8f5ee' : 'white', color: isSaved ? '#085041' : '#888', fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+      >
+        {isSaving ? '...' : isSaved ? '✓ Saved' : '+ Save'}
+      </button>
+    );
   };
 
   const renderPagination = (tabId: string) => {
     const page = pages[tabId] || 1;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '24px', paddingBottom: '24px' }}>
-        <button
-          onClick={() => loadMoreResults(tabId, page - 1)}
-          disabled={page <= 1 || pageLoading}
-          style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #e0ede6', background: 'white', color: page <= 1 ? '#ccc' : '#4a7c5f', cursor: page <= 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500 }}
-        >← Prev</button>
+        <button onClick={() => loadMoreResults(tabId, page - 1)} disabled={page <= 1 || pageLoading}
+          style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #e0ede6', background: 'white', color: page <= 1 ? '#ccc' : '#4a7c5f', cursor: page <= 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 500 }}>← Prev</button>
         {[1, 2, 3, 4, 5].map(p => (
           <button key={p} onClick={() => p !== page && loadMoreResults(tabId, p)}
             style={{ width: '36px', height: '36px', borderRadius: '8px', border: p === page ? 'none' : '1.5px solid #e0ede6', background: p === page ? '#1D9E75' : 'white', color: p === page ? 'white' : '#4a7c5f', cursor: p === page ? 'default' : 'pointer', fontSize: '13px', fontWeight: p === page ? 700 : 400 }}>
             {p}
           </button>
         ))}
-        <button
-          onClick={() => loadMoreResults(tabId, page + 1)}
-          disabled={page >= 5 || pageLoading}
-          style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #c5e8d4', background: 'white', color: page >= 5 ? '#ccc' : '#1D9E75', cursor: page >= 5 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
-        >Next →</button>
+        <button onClick={() => loadMoreResults(tabId, page + 1)} disabled={page >= 5 || pageLoading}
+          style={{ padding: '8px 16px', borderRadius: '8px', border: '1.5px solid #c5e8d4', background: 'white', color: page >= 5 ? '#ccc' : '#1D9E75', cursor: page >= 5 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>Next →</button>
+      </div>
+    );
+  };
+
+  const renderSavedItems = () => {
+    if (savedItems.length === 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: '80px 0', opacity: 0.5 }}>
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>🔖</div>
+          <p style={{ fontSize: '15px', color: '#4a7c5f' }}>No saved items yet — hit + Save on any result</p>
+        </div>
+      );
+    }
+    const grouped: Record<string, any[]> = {};
+    savedItems.forEach(item => {
+      if (!grouped[item.search_topic]) grouped[item.search_topic] = [];
+      grouped[item.search_topic].push(item);
+    });
+    return (
+      <div>
+        {Object.entries(grouped).map(([topic, items]) => (
+          <div key={topic} style={{ marginBottom: '28px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#0a1a12', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1D9E75', display: 'inline-block' }} />
+              {topic}
+            </div>
+            {items.map((item, i) => (
+              <a key={i} href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <div style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '12px', padding: '14px 16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#0a1a12', margin: '0 0 4px' }}>{item.title}</p>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '0 0 6px', lineHeight: 1.5 }}>{item.description?.slice(0, 100)}...</p>
+                    <span style={{ fontSize: '11px', background: '#e8f5ee', color: '#085041', padding: '2px 8px', borderRadius: '20px', fontWeight: 600, border: '1px solid #c5e8d4' }}>{item.source}</span>
+                  </div>
+                  <SaveButton item={item} />
+                </div>
+              </a>
+            ))}
+          </div>
+        ))}
       </div>
     );
   };
 
   const renderResults = () => {
+    if (showSaved) return renderSavedItems();
     if (!results) return null;
 
     if (activeTab === 'tutor') {
@@ -307,29 +390,27 @@ export default function Home() {
         <>
           {items.map((v: any, i: number) => {
             const color = CARD_COLORS[i % CARD_COLORS.length];
+            const url = ytBase + v.id.videoId;
             return (
-              <a key={i} href={ytBase + v.id.videoId} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                <div style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '14px', padding: '16px 18px', display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '10px', cursor: 'pointer' }}>
+              <div key={i} style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '14px', padding: '16px 18px', display: 'flex', gap: '16px', alignItems: 'flex-start', marginBottom: '10px' }}>
+                <a href={url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', display: 'flex', gap: '16px', flex: 1, alignItems: 'flex-start' }}>
                   <div style={{ width: '120px', height: '72px', borderRadius: '10px', background: color.bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {v.snippet.thumbnails?.medium?.url
                       ? <img src={v.snippet.thumbnails.medium.url} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} />
-                      : <div style={{ width: '36px', height: '36px', background: color.circle, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <span style={{ color: 'white', fontSize: '14px', marginLeft: '2px' }}>▶</span>
-                        </div>
+                      : <div style={{ width: '36px', height: '36px', background: color.circle, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: 'white', fontSize: '14px', marginLeft: '2px' }}>▶</span></div>
                     }
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '15px', fontWeight: 800, color: '#0a1a12', margin: '0 0 4px', letterSpacing: '-0.2px', lineHeight: 1.3 }}>{v.snippet.title}</p>
                     <p style={{ fontSize: '12px', color: '#1D9E75', margin: '0 0 6px', fontWeight: 700 }}>{v.snippet.channelTitle}</p>
-                    <p style={{ fontSize: '13px', color: '#666', margin: '0 0 10px', lineHeight: 1.5 }}>
-                      {v.snippet.description ? v.snippet.description.slice(0, 120) + (v.snippet.description.length > 120 ? '...' : '') : 'Click to watch on YouTube.'}
+                    <p style={{ fontSize: '13px', color: '#666', margin: '0 0 8px', lineHeight: 1.5 }}>
+                      {v.snippet.description ? v.snippet.description.slice(0, 120) + '...' : 'Click to watch on YouTube.'}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', background: '#e8f5ee', color: '#085041', padding: '3px 10px', borderRadius: '20px', fontWeight: 600, border: '1px solid #c5e8d4' }}>YouTube</span>
-                    </div>
+                    <span style={{ fontSize: '11px', background: '#e8f5ee', color: '#085041', padding: '3px 10px', borderRadius: '20px', fontWeight: 600, border: '1px solid #c5e8d4' }}>YouTube</span>
                   </div>
-                </div>
-              </a>
+                </a>
+                <SaveButton item={{ title: v.snippet.title, url, source: 'YouTube', type: 'video', thumbnail: v.snippet.thumbnails?.medium?.url, description: v.snippet.description }} />
+              </div>
             );
           })}
           {renderPagination('videos')}
@@ -340,15 +421,16 @@ export default function Home() {
     return (
       <>
         {items.map((item: any, i: number) => (
-          <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-            <div style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '14px', padding: '16px 18px', marginBottom: '10px', cursor: 'pointer' }}>
+          <div key={i} style={{ background: 'white', border: '1.5px solid #eef5f1', borderRadius: '14px', padding: '16px 18px', marginBottom: '10px', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+            <a href={item.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                 <p style={{ fontSize: '15px', fontWeight: 800, color: '#0a1a12', margin: 0, letterSpacing: '-0.2px' }}>{item.title}</p>
                 <span style={{ fontSize: '11px', background: '#e8f5ee', color: '#085041', padding: '3px 10px', borderRadius: '20px', fontWeight: 600, border: '1px solid #c5e8d4', marginLeft: '12px', flexShrink: 0 }}>{item.source}</span>
               </div>
               <p style={{ fontSize: '13px', color: '#555', margin: 0, lineHeight: 1.6 }}>{item.snippet}</p>
-            </div>
-          </a>
+            </a>
+            <SaveButton item={{ title: item.title, url: item.link, source: item.source, type: activeTab, description: item.snippet }} />
+          </div>
         ))}
         {renderPagination(activeTab)}
       </>
@@ -377,7 +459,7 @@ export default function Home() {
             style={{ flex: 1, border: 'none', background: 'transparent', color: '#0a1a12', fontSize: '14px', outline: 'none' }} />
           <span style={{ fontSize: '11px', color: '#bbb', background: '#eef5f1', padding: '2px 8px', borderRadius: '5px', border: '1px solid #d4ede2' }}>⌘K</span>
         </div>
-        <button onClick={handleSearch} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.2px' }}>
+        <button onClick={() => handleSearch()} style={{ background: '#1D9E75', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
           {loading ? 'Searching...' : 'Search →'}
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fff8f2', border: '1.5px solid #fddcb8', borderRadius: '10px', padding: '6px 12px', flexShrink: 0 }}>
@@ -418,7 +500,7 @@ export default function Home() {
             <p style={{ fontSize: '16px', color: '#4a7c5f', margin: '0 0 40px', fontWeight: 500 }}>YouTube · PDFs · Quizlet · Reddit · Textbooks — all in one search</p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               {['Organic Chemistry Ch.5', 'Calculus 2 Integration', 'Micro Economics', 'Physics Kinematics'].map(s => (
-                <button key={s} onClick={() => { setQuery(s); }} style={{ fontSize: '13px', background: 'white', color: '#0a1a12', border: '1.5px solid #d4ede2', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontWeight: 500 }}>{s}</button>
+                <button key={s} onClick={() => handleSearch(s)} style={{ fontSize: '13px', background: 'white', color: '#0a1a12', border: '1.5px solid #d4ede2', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontWeight: 500 }}>{s}</button>
               ))}
             </div>
           </div>
@@ -428,23 +510,19 @@ export default function Home() {
       {/* Main layout */}
       {hasSearched && (
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 62px)' }}>
-
           {/* Sidebar */}
           <div style={{ width: '220px', flexShrink: 0, background: 'white', borderRight: '1.5px solid #e8f2ec' }}>
             <div style={{ padding: '16px 10px', position: 'sticky', top: '62px', overflowY: 'auto', maxHeight: 'calc(100vh - 62px)' }}>
-
               <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>STUDY TOOLS</div>
               {TABS.map(tab => {
                 const count = getResultCount(tab.id);
-                const isActive = activeTab === tab.id;
+                const isActive = activeTab === tab.id && !showSaved;
                 return (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', border: isActive ? 'none' : 'none', background: isActive ? '#f0faf5' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: isActive ? 700 : 400, color: isActive ? '#085041' : '#4a7c5f', textAlign: 'left', marginBottom: '2px', borderLeft: isActive ? '3px solid #1D9E75' : '3px solid transparent' }}>
+                  <button key={tab.id} onClick={() => { setActiveTab(tab.id); setShowSaved(false); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', border: 'none', background: isActive ? '#f0faf5' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: isActive ? 700 : 400, color: isActive ? '#085041' : '#4a7c5f', textAlign: 'left', marginBottom: '2px', borderLeft: isActive ? '3px solid #1D9E75' : '3px solid transparent' } as any}>
                     <span style={{ fontSize: '14px', color: tab.iconColor }}>{tab.icon}</span>
                     <span style={{ flex: 1 }}>{tab.label}</span>
-                    {count > 0 && (
-                      <span style={{ fontSize: '11px', background: isActive ? '#1D9E75' : '#e8f5ee', color: isActive ? 'white' : '#085041', padding: '2px 8px', borderRadius: '20px', fontWeight: 700 }}>{count}</span>
-                    )}
+                    {count > 0 && <span style={{ fontSize: '11px', background: isActive ? '#1D9E75' : '#e8f5ee', color: isActive ? 'white' : '#085041', padding: '2px 8px', borderRadius: '20px', fontWeight: 700 }}>{count}</span>}
                   </button>
                 );
               })}
@@ -452,13 +530,13 @@ export default function Home() {
               <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
               <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>AI FEATURES</div>
 
-              <button onClick={() => { setActiveTab('tutor'); initializeTutor(); }}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: activeTab === 'tutor' ? '#fdf3ff' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: activeTab === 'tutor' ? 700 : 500, color: activeTab === 'tutor' ? '#7c3aed' : '#7c3aed', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: activeTab === 'tutor' ? '3px solid #a855f7' : '3px solid transparent' }}>
+              <button onClick={() => { setActiveTab('tutor'); setShowSaved(false); initializeTutor(); }}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: activeTab === 'tutor' && !showSaved ? '#fdf3ff' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: activeTab === 'tutor' && !showSaved ? 700 : 500, color: '#7c3aed', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: activeTab === 'tutor' && !showSaved ? '3px solid #a855f7' : '3px solid transparent' } as any}>
                 <span style={{ fontSize: '14px' }}>✦</span>
                 <span style={{ flex: 1 }}>AI Tutor</span>
               </button>
 
-              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 400, color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' }}>
+              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' } as any}>
                 <span style={{ fontSize: '14px', color: '#1D9E75' }}>📝</span>
                 <span style={{ flex: 1 }}>Study Guide</span>
                 <span style={{ background: '#fb923c', color: 'white', borderRadius: '4px', padding: '1px 7px', fontSize: '9px', fontWeight: 700 }}>PRO</span>
@@ -467,10 +545,20 @@ export default function Home() {
               <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
               <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>PLANNING</div>
 
-              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 400, color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' }}>
+              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' } as any}>
                 <span style={{ fontSize: '14px', color: '#2a7cd4' }}>🎓</span>
                 <span style={{ flex: 1 }}>Degree Planner</span>
                 <span style={{ background: '#1D9E75', color: 'white', borderRadius: '4px', padding: '1px 7px', fontSize: '9px', fontWeight: 700 }}>NEW</span>
+              </button>
+
+              <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
+              <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>SAVED</div>
+
+              <button onClick={() => setShowSaved(true)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: showSaved ? '#f0faf5' : 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: showSaved ? 700 : 400, color: showSaved ? '#085041' : '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: showSaved ? '3px solid #1D9E75' : '3px solid transparent' } as any}>
+                <span style={{ fontSize: '14px', color: '#1D9E75' }}>🔖</span>
+                <span style={{ flex: 1 }}>Saved Items</span>
+                {savedItems.length > 0 && <span style={{ fontSize: '11px', background: showSaved ? '#1D9E75' : '#e8f5ee', color: showSaved ? 'white' : '#085041', padding: '2px 8px', borderRadius: '20px', fontWeight: 700 }}>{savedItems.length}</span>}
               </button>
 
               {recentSearches.length > 0 && (
@@ -478,10 +566,10 @@ export default function Home() {
                   <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
                   <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>RECENTLY VIEWED</div>
                   {recentSearches.map((s, i) => (
-                    <button key={i} onClick={() => { setQuery(s); handleSearch(); }}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 12px', borderRadius: '7px', background: 'transparent', cursor: 'pointer', fontSize: '12px', color: '#888', textAlign: 'left', border: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <button key={i} onClick={() => handleSearch(s)}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 12px', borderRadius: '7px', background: 'transparent', cursor: 'pointer', fontSize: '12px', color: '#888', textAlign: 'left', border: 'none', overflow: 'hidden' }}>
                       <span style={{ fontSize: '12px', color: '#ccc' }}>🕐</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s}</span>
                     </button>
                   ))}
                 </>
@@ -498,7 +586,14 @@ export default function Home() {
               </div>
             )}
 
-            {results && !loading && (
+            {showSaved && (
+              <div style={{ marginBottom: '20px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0a1a12', margin: '0 0 4px', letterSpacing: '-0.3px' }}>Saved Items</h2>
+                <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>{savedItems.length} item{savedItems.length !== 1 ? 's' : ''} saved across all your searches</p>
+              </div>
+            )}
+
+            {results && !loading && !showSaved && (
               <>
                 {tags.length > 0 && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
@@ -516,9 +611,9 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-                <div>{renderResults()}</div>
               </>
             )}
+            <div>{renderResults()}</div>
           </div>
         </div>
       )}
