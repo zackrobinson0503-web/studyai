@@ -71,10 +71,10 @@ export default function Home() {
   const q = params.get('q');
   if (q) {
     setQuery(q);
+    setHasSearched(true);
     handleSearch(q);
   }
 }, []);
-
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
