@@ -110,21 +110,22 @@ export default function Home() {
     }
   }
 
-  async function handleSave(item: { title: string; url: string; source: string; type: string; thumbnail?: string; description?: string }) {
-    if (!session?.user?.email) { signIn('google'); return; }
-    setSavingUrl(item.url);
-    if (savedUrls.has(item.url)) {
-      await unsaveItem(session.user.email, item.url);
-      setSavedUrls(prev => { const n = new Set(prev); n.delete(item.url); return n; });
-      setSavedItems(prev => prev.filter(i => i.url !== item.url));
-    } else {
-      await saveItem(session.user.email, { ...item, search_topic: currentTopic });
-      setSavedUrls(prev => new Set(prev).add(item.url));
-      const fresh = await getSavedItems(session.user.email);
-      setSavedItems(fresh);
-    }
-    setSavingUrl(null);
+async function handleSave(item: { title: string; url: string; source: string; type: string; thumbnail?: string; description?: string }) {
+  if (!session?.user?.email) { signIn('google'); return; }
+  setSavingUrl(item.url);
+  if (savedUrls.has(item.url)) {
+    await unsaveItem(session.user.email, item.url);
+    setSavedUrls(prev => { const n = new Set(prev); n.delete(item.url); return n; });
+    setSavedItems(prev => prev.filter(i => i.url !== item.url));
+  } else {
+    await saveItem(session.user.email, { ...item, search_topic: currentTopic });
+    setSavedUrls(prev => new Set(prev).add(item.url));
+    // Refresh saved items from Supabase immediately
+    const fresh = await getSavedItems(session.user.email);
+    setSavedItems(fresh);
   }
+  setSavingUrl(null);
+}
 
   async function loadMoreResults(tabId: string, nextPage: number) {
     if (pageLoading) return;
