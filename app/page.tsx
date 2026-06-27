@@ -73,6 +73,11 @@ useEffect(() => {
   if (q) {
     setQuery(q);
     setHasSearched(true);
+    const cached = localStorage.getItem(`search_${q}`);
+    if (cached) {
+      setResults(JSON.parse(cached));
+      setLoading(false);
+    }
     setTimeout(() => handleSearch(q), 100);
   }
 }, []);
@@ -110,6 +115,7 @@ useEffect(() => {
     });
     const data = await res.json();
     setResults(data);
+    localStorage.setItem(`search_${q}`, JSON.stringify(data));
     setCurrentTopic(q);
     window.history.pushState({}, '', `?q=${encodeURIComponent(q)}`);
     setLoading(false);
