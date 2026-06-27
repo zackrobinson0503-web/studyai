@@ -90,9 +90,10 @@ useEffect(() => {
   tutorBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
 }, [tutorMessages]);
 
-  async function handleSearch(searchQuery?: string) {
+  async function handleSearch(searchQuery?: string, skipIfCached?: boolean) {
     const q = searchQuery || query;
     if (!q.trim()) return;
+    if (skipIfCached && localStorage.getItem(`search_${q}`)) return;
     setQuery(q);
     setLoading(true);
     setResults(null);
@@ -563,7 +564,7 @@ async function handleSave(item: { title: string; url: string; source: string; ty
               <div style={{ borderTop: '1.5px solid #eef5f1', margin: '10px 4px' }} />
               <div style={{ fontSize: '10px', color: '#aac8b8', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 12px', marginBottom: '6px' }}>PLANNING</div>
 
-              <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' } as any}>
+              <button onClick={() => router.push('/degree-planner')} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '9px', background: 'transparent', cursor: 'pointer', fontSize: '13px', color: '#4a7c5f', textAlign: 'left', marginBottom: '2px', border: 'none', borderLeft: '3px solid transparent' } as any}>
                 <span style={{ fontSize: '14px', color: '#2a7cd4' }}>🎓</span>
                 <span style={{ flex: 1 }}>Degree Planner</span>
                 <span style={{ background: '#1D9E75', color: 'white', borderRadius: '4px', padding: '1px 7px', fontSize: '9px', fontWeight: 700 }}>NEW</span>
