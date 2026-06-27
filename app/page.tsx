@@ -58,30 +58,32 @@ export default function Home() {
   const tutorBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (session?.user?.email) {
-      getRecentSearches(session.user.email).then(setRecentSearches);
-      getSavedItems(session.user.email).then(items => {
-        setSavedItems(items);
-        setSavedUrls(new Set(items.map((i: any) => i.url)));
-      });
-    }
-  }, [session]);
-  useEffect(() => {
+  if (session?.user?.email) {
+    getRecentSearches(session.user.email).then(setRecentSearches);
+    getSavedItems(session.user.email).then(items => {
+      setSavedItems(items);
+      setSavedUrls(new Set(items.map((i: any) => i.url)));
+    });
+  }
+}, [session]);
+
+useEffect(() => {
   const params = new URLSearchParams(window.location.search);
   const q = params.get('q');
   if (q) {
     setQuery(q);
     setHasSearched(true);
-    handleSearch(q);
+    setTimeout(() => handleSearch(q), 100);
   }
 }, []);
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
 
-  useEffect(() => {
-    tutorBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [tutorMessages]);
+useEffect(() => {
+  chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+}, [chatMessages]);
+
+useEffect(() => {
+  tutorBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+}, [tutorMessages]);
 
   async function handleSearch(searchQuery?: string) {
     const q = searchQuery || query;
