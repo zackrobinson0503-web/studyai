@@ -66,6 +66,14 @@ export default function Home() {
       });
     }
   }, [session]);
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('q');
+  if (q) {
+    setQuery(q);
+    handleSearch(q);
+  }
+}, []);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -101,6 +109,7 @@ export default function Home() {
     const data = await res.json();
     setResults(data);
     setCurrentTopic(q);
+    window.history.pushState({}, '', `?q=${encodeURIComponent(q)}`);
     setLoading(false);
     if (session?.user?.email) {
       const updated = await getRecentSearches(session.user.email);
